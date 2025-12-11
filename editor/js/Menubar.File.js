@@ -161,7 +161,34 @@ function MenubarFile( editor ) {
 		} );
 
 	options.add( option );
+	  // --- Download GLB (simple one-click export) -----------------
 
+  let option = new UIRow();
+  option.setTextContent( 'Download GLB (.glb)' );
+  option.onClick( function () {
+
+    // Use GLTFExporter to export the current scene as a binary GLB file
+    const exporter = new THREE.GLTFExporter();
+
+    exporter.parse(
+      editor.scene,
+      function ( result ) {
+
+        // result is an ArrayBuffer for binary mode
+        const blob = new Blob( [ result ], { type: 'model/gltf-binary' } );
+        saveBlob( blob, 'vesl-model.glb' );
+
+      },
+      { binary: true }
+    );
+
+  } );
+  options.add( option );
+
+  // helper for saving files (you can put this near the bottom of the file)
+
+
+/*
 	// Save
 
 	option = new UIRow()
@@ -180,7 +207,7 @@ function MenubarFile( editor ) {
 	//
 
 	options.add( new UIHorizontalRule() );
-
+*/
 	// Import
 
 	const form = document.createElement( 'form' );
@@ -230,6 +257,7 @@ function MenubarFile( editor ) {
 	const fileExportSubmenu = new UIPanel().setPosition( 'fixed' ).addClass( 'options' ).setDisplay( 'none' );
 	fileExportSubmenuTitle.add( fileExportSubmenu );
 
+/*
 	// Export DRC
 
 	option = new UIRow();
@@ -266,6 +294,7 @@ function MenubarFile( editor ) {
 
 	} );
 	fileExportSubmenu.add( option );
+	*/
 
 	// Export GLB
 
@@ -298,6 +327,32 @@ function MenubarFile( editor ) {
 	} );
 	fileExportSubmenu.add( option );
 
+	  // --- Share (Download JSON) ----------------------------------
+
+  option = new UIRow();
+  option.setTextContent( 'Share (Download JSON)' );
+  option.onClick( function () {
+
+    // Serialize the editor state as JSON
+    const json = editor.toJSON();
+
+    const blob = new Blob(
+      [ JSON.stringify( json, null, 2 ) ],
+      { type: 'application/json' }
+    );
+
+    saveBlob( blob, 'vesl-scene.json' );
+
+    // OPTIONAL: also open mail client with subject pre-filled
+    // window.location.href =
+    //   'mailto:?subject=' +
+    //   encodeURIComponent( 'Check out my VESL 3D model' ) +
+    //   '&body=' +
+    //   encodeURIComponent( 'I attached my 3D model JSON from the VESL editor.' );
+  } );
+  options.add( option );
+
+/*
 	// Export GLTF
 
 	option = new UIRow();
@@ -330,6 +385,7 @@ function MenubarFile( editor ) {
 	} );
 	fileExportSubmenu.add( option );
 
+
 	// Export OBJ
 
 	option = new UIRow();
@@ -354,6 +410,7 @@ function MenubarFile( editor ) {
 
 	} );
 	fileExportSubmenu.add( option );
+	
 
 	// Export PLY (ASCII)
 
@@ -374,6 +431,7 @@ function MenubarFile( editor ) {
 
 	} );
 	fileExportSubmenu.add( option );
+	
 
 	// Export PLY (BINARY)
 
@@ -442,6 +500,7 @@ function MenubarFile( editor ) {
 
 	} );
 	fileExportSubmenu.add( option );
+	*/
 
 	//
 
@@ -464,3 +523,17 @@ function MenubarFile( editor ) {
 }
 
 export { MenubarFile };
+function saveBlob( blob, filename ) {
+
+  const link = document.createElement( 'a' );
+  link.href = URL.createObjectURL( blob );
+  link.download = filename === undefined ? 'file.bin' : filename;
+  link.click();
+
+  // cleanup
+  setTimeout( function () {
+    URL.revokeObjectURL( link.href );
+  }, 1000 );
+
+}
+
