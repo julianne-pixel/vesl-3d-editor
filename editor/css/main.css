@@ -792,15 +792,45 @@ select {
 	transform: translate(0, 0);
 	z-index: 0;
 }
-/* VESL OVERRIDES */
+/* ===== VESL THEME OVERRIDES ===== */
+
+:root {
+  --vesl-green: #00fd64;
+  --vesl-purple: #cb0ed1;
+  --vesl-bg: #050608;
+  --vesl-panel: #101218;
+}
+
+/* Top menu bar */
 #menubar {
-    background: #0a0a0a;
-    border-bottom: 1px solid #00fd64;
+  background-color: var(--vesl-bg);
+  border-bottom: 1px solid #1c1f2a;
 }
-#menubar .menu > div {
-    color: #e6e6e6;
+
+/* Menu titles: File / Edit / Add / Help */
+#menubar .menu .title {
+  color: #f5f5f5;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
-#menubar .menu div:hover {
-    background: #00fd64;
-    color: #000;
+
+#menubar .menu .title:hover {
+  background-color: var(--vesl-green);
+  color: #000;
+}
+
+/* Dropdown panels */
+#menubar .menu .options {
+  background-color: var(--vesl-panel);
+  border: 1px solid var(--vesl-green);
+}
+
+/* Options inside dropdown */
+#menubar .menu .options .option {
+  color: #f5f5f5;
+}
+
+#menubar .menu .options .option:hover {
+  background-color: rgba(0, 253, 100, 0.15);
+  color: #ffffff;
 }
