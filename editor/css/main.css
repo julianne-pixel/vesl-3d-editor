@@ -792,3 +792,15 @@ select {
 	transform: translate(0, 0);
 	z-index: 0;
 }
+/* VESL OVERRIDES */
+#menubar {
+    background: #0a0a0a;
+    border-bottom: 1px solid #00fd64;
+}
+#menubar .menu > div {
+    color: #e6e6e6;
+}
+#menubar .menu div:hover {
+    background: #00fd64;
+    color: #000;
+}
