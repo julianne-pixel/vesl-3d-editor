@@ -88,18 +88,38 @@ const save = editor.utils.save;
 
 	options.add( option );
 
-	// ---------------------------------------------------
-	// Download (.glb) – one-click GLB export
-	// ---------------------------------------------------
+	// Export
 
-	option = new UIRow()
-		.setClass( 'option' )
-		.setTextContent( 'Download (.glb)' );
+	const fileExportSubmenuTitle = new UIRow().setTextContent( strings.getKey( 'menubar/file/export' ) ).addClass( 'option' ).addClass( 'submenu-title' );
+	fileExportSubmenuTitle.onMouseOver( function () {
 
+		const { top, right } = this.dom.getBoundingClientRect();
+		const { paddingTop } = getComputedStyle( this.dom );
+		fileExportSubmenu.setLeft( right + 'px' );
+		fileExportSubmenu.setTop( top - parseFloat( paddingTop ) + 'px' );
+		fileExportSubmenu.setDisplay( 'block' );
+
+	} );
+	fileExportSubmenuTitle.onMouseOut( function () {
+
+		fileExportSubmenu.setDisplay( 'none' );
+
+	} );
+	options.add( fileExportSubmenuTitle );
+
+	const fileExportSubmenu = new UIPanel().setPosition( 'fixed' ).addClass( 'options' ).setDisplay( 'none' );
+	fileExportSubmenuTitle.add( fileExportSubmenu );
+
+	// Export GLB
+
+	option = new UIRow();
+	option.setClass( 'option' );
+	option.setTextContent( 'GLB' );
 	option.onClick( async function () {
 
 		const scene = editor.scene;
 		const animations = getAnimations( scene );
+
 		const optimizedAnimations = [];
 
 		for ( const animation of animations ) {
@@ -109,29 +129,19 @@ const save = editor.utils.save;
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
+
 		const exporter = new GLTFExporter();
 
-		exporter.parse(
-			scene,
-			function ( result ) {
+		exporter.parse( scene, function ( result ) {
 
-				// result is an ArrayBuffer – wrap it in a Blob
-				const blob = new Blob( [ result ], { type: 'model/gltf-binary' } );
+			saveArrayBuffer( result, 'scene.glb' );
 
-				// Use the editor's built-in "save" helper, which
-				// handles Safari/Chrome/Firefox differences
-				save( blob, 'vesl-model.glb' );
-
-			},
-			undefined,
-			{ binary: true, animations: optimizedAnimations }
-		);
+		}, undefined, { binary: true, animations: optimizedAnimations } );
 
 	} );
+	fileExportSubmenu.add( option );
 
-	options.add( option );
-
-	// ---------------------------------------------------
+	//
 
 	function getAnimations( scene ) {
 
@@ -139,7 +149,7 @@ const save = editor.utils.save;
 
 		scene.traverse( function ( object ) {
 
-			animations.push( ...object.animations );
+			animations.push( ... object.animations );
 
 		} );
 
