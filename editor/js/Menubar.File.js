@@ -87,16 +87,18 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
-	// Export GLB
+	// ---------------------------------------------------
+	// Download (.glb) – use built-in saveArrayBuffer helper
+	// ---------------------------------------------------
 
-	option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( 'GLB' );
+	option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( 'Download (.glb)' );
+
 	option.onClick( async function () {
 
 		const scene = editor.scene;
 		const animations = getAnimations( scene );
-
 		const optimizedAnimations = [];
 
 		for ( const animation of animations ) {
@@ -106,17 +108,26 @@ function MenubarFile( editor ) {
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
-
 		const exporter = new GLTFExporter();
 
-		exporter.parse( scene, function ( result ) {
+		exporter.parse(
+			scene,
+			function ( result ) {
 
-			saveArrayBuffer( result, 'scene.glb' );
+				// Let the editor's own helper handle the download
+				// (this is what the original editor uses)
+				saveArrayBuffer( result, 'vesl-model.glb' );
 
-		}, undefined, { binary: true, animations: optimizedAnimations } );
+			},
+			undefined,
+			{ binary: true, animations: optimizedAnimations }
+		);
 
 	} );
-	fileExportSubmenu.add( option );
+
+	options.add( option );
+
+	
 	//
 
 	function getAnimations( scene ) {
