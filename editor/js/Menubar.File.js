@@ -51,12 +51,11 @@ const fileInput = document.createElement( 'input' );
 fileInput.multiple = true;
 fileInput.type = 'file';
 
-// ✅ Only allow .glb files in the picker
+// Only allow .glb
 fileInput.accept = '.glb,model/gltf-binary';
 
 fileInput.addEventListener( 'change', function () {
 
-    // Optional: guard against non-glb files if someone forces them in
     const files = Array.from( fileInput.files ).filter( file =>
         file.name.toLowerCase().endsWith( '.glb' )
     );
@@ -73,20 +72,22 @@ fileInput.addEventListener( 'change', function () {
     form.reset();
 
 } );
+
 form.appendChild( fileInput );
 
+// Menu item
+option = new UIRow()
+    .setClass( 'option' )
+    .setTextContent( strings.getKey( 'menubar/file/import' ) );
 
-	option = new UIRow()
-		.setClass( 'option' )
-		.setTextContent( strings.getKey( 'menubar/file/import' ) );
+option.onClick( function () {
 
-	option.onClick( function () {
+    fileInput.click();   // ✅ Corrected line
 
-		importInput.click();
+} );
 
-	} );
+options.add( option );
 
-	options.add( option );
 
 	// ---------------------------------------------------
 	// Download (.glb) – one-click GLB export
