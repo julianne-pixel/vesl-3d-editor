@@ -126,52 +126,73 @@ function SidebarAddShapes( editor ) {
 
 	}
 
-	function applyPreset( preset ) {
+function applyPreset( preset ) {
 
-		const result = getSelectedMaterial();
-		if ( !result ) return;
+	const result = getSelectedMaterial();
+	if ( !result ) return;
 
-		const { object, material } = result;
+	const { object, material } = result;
 
-		// reset baseline so presets don't stack weirdly
-		material.transparent = false;
-		material.opacity = 1.0;
+	// reset baseline so presets don't stack weirdly
+	material.transparent = false;
+	material.opacity = 1.0;
+	material.depthWrite = true;
+	material.metalness = 0.0;
+	material.roughness = 0.5;
+	material.envMapIntensity = 1.0;
 
-		if ( preset === 'matte' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 1.0;
-
-		} else if ( preset === 'plastic' ) {
-
-			material.metalness = 0.2;
-			material.roughness = 0.4;
-
-		} else if ( preset === 'metal' ) {
-
-			material.metalness = 1.0;
-			material.roughness = 0.15;
-			material.envMapIntensity = 1.0;
-
-		} else if ( preset === 'glass' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 0.05;
-			material.transparent = true;
-			material.opacity = 0.2;
-			material.envMapIntensity = 1.0;
-		}
-
-		material.needsUpdate = true;
-
-		// 🔑 These are the important bits the editor listens for
-		if ( signals.materialChanged ) {
-			signals.materialChanged.dispatch( material );
-		}
-
-		signals.objectChanged.dispatch( object );
-
+	if ( material.emissive ) {
+		material.emissive.set( 0x000000 );
 	}
+
+	if ( preset === 'matte' ) {
+
+		// very flat / chalky
+		material.metalness = 0.0;
+		material.roughness = 0.95;
+
+	} else if ( preset === 'plastic' ) {
+
+		// a bit glossier, feels more “toy” plastic
+		material.metalness = 0.0;
+		material.roughness = 0.35;
+
+		if ( material.emissive ) {
+			// tiny glow so it pops more than matte
+			material.emissive.copy( material.color ).multiplyScalar( 0.1 );
+		}
+
+	} else if ( preset === 'metal' ) {
+
+		// super shiny, very reflective
+		material.metalness = 1.0;
+		material.roughness = 0.08;
+		material.envMapIntensity = 2.0;
+
+	} else if ( preset === 'glass' ) {
+
+		// transparent, thin-glass look
+		material.metalness = 0.0;
+		material.roughness = 0.03;
+		material.transparent = true;
+		material.opacity = 0.18;
+		material.depthWrite = false; // helps see inside better
+		material.envMapIntensity = 1.5;
+
+		// brighten the color towards white so it feels more like tinted glass
+		const glassColor = material.color.clone().lerp( new Color( 0xffffff ), 0.4 );
+		material.color.copy( glassColor );
+	}
+
+	material.needsUpdate = true;
+
+	if ( signals.materialChanged ) {
+		signals.materialChanged.dispatch( material );
+	}
+
+	signals.objectChanged.dispatch( object );
+}
+
 
 
 	// ---------- color swatches ----------
