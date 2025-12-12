@@ -133,7 +133,7 @@ function SidebarAddShapes( editor ) {
 
 		const { object, material } = result;
 
-		// reset baseline
+		// reset baseline so presets don't stack weirdly
 		material.transparent = false;
 		material.opacity = 1.0;
 
@@ -150,21 +150,29 @@ function SidebarAddShapes( editor ) {
 		} else if ( preset === 'metal' ) {
 
 			material.metalness = 1.0;
-			material.roughness = 0.2;
+			material.roughness = 0.15;
+			material.envMapIntensity = 1.0;
 
 		} else if ( preset === 'glass' ) {
 
-			material.metalness = 0.25;
-			material.roughness = 0.1;
+			material.metalness = 0.0;
+			material.roughness = 0.05;
 			material.transparent = true;
-			material.opacity = 0.25;
-
+			material.opacity = 0.2;
+			material.envMapIntensity = 1.0;
 		}
 
 		material.needsUpdate = true;
+
+		// 🔑 These are the important bits the editor listens for
+		if ( signals.materialChanged ) {
+			signals.materialChanged.dispatch( material );
+		}
+
 		signals.objectChanged.dispatch( object );
 
 	}
+
 
 	// ---------- color swatches ----------
 
