@@ -1,11 +1,4 @@
-import { Box3, Vector3 } from 'three';
-
-import { UIPanel, UIRow, UIHorizontalRule, UIText } from './libs/ui.js';
-
-import { AddObjectCommand } from './commands/AddObjectCommand.js';
-import { RemoveObjectCommand } from './commands/RemoveObjectCommand.js';
-import { SetPositionCommand } from './commands/SetPositionCommand.js';
-import { clone } from '../../examples/jsm/utils/SkeletonUtils.js';
+import { UIPanel, UIRow } from './libs/ui.js';
 
 function MenubarEdit( editor ) {
 
@@ -24,118 +17,63 @@ function MenubarEdit( editor ) {
 	container.add( options );
 
 	// Undo
+	let option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( strings.getKey( 'menubar/edit/undo' ) );
 
-	const undo = new UIRow();
-	undo.setClass( 'option' );
-	undo.setTextContent( strings.getKey( 'menubar/edit/undo' ) );
-	undo.add( new UIText( 'CTRL+Z' ).setClass( 'key' ) );
-	undo.onClick( function () {
+	option.onClick( function () {
 
 		editor.undo();
 
 	} );
-	options.add( undo );
+
+	options.add( option );
 
 	// Redo
+	option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( strings.getKey( 'menubar/edit/redo' ) );
 
-	const redo = new UIRow();
-	redo.setClass( 'option' );
-	redo.setTextContent( strings.getKey( 'menubar/edit/redo' ) );
-	redo.add( new UIText( 'CTRL+SHIFT+Z' ).setClass( 'key' ) );
-	redo.onClick( function () {
+	option.onClick( function () {
 
 		editor.redo();
 
 	} );
-	options.add( redo );
 
-	function onHistoryChanged() {
+	options.add( option );
 
-		const history = editor.history;
+	// Duplicate Object
+	option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( strings.getKey( 'menubar/edit/clone' ) ); // existing i18n key
 
-		undo.setClass( 'option' );
-		redo.setClass( 'option' );
+	option.onClick( function () {
 
-		if ( history.undos.length == 0 ) {
+		if ( editor.selected !== null ) editor.duplicate();
 
-			undo.setClass( 'inactive' );
+	} );
 
-		}
+	options.add( option );
 
-		if ( history.redos.length == 0 ) {
+	// Delete Object
+	option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( strings.getKey( 'menubar/edit/delete' ) );
 
-			redo.setClass( 'inactive' );
-
-		}
-
-	}
-
-	editor.signals.historyChanged.add( onHistoryChanged );
-	onHistoryChanged();
-
-	// ---
-
-	options.add( new UIHorizontalRule() );
-
-	// Center
-
-	let option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/edit/center' ) );
 	option.onClick( function () {
 
 		const object = editor.selected;
 
-		if ( object === null || object.parent === null ) return; // avoid centering the camera or scene
+		if ( object === null ) return;
 
-		const aabb = new Box3().setFromObject( object );
-		const center = aabb.getCenter( new Vector3() );
-		const newPosition = new Vector3();
+		if ( confirm( strings.getKey( 'menubar/edit/delete' ) + '?' ) ) {
 
-		newPosition.x = object.position.x - center.x;
-		newPosition.y = object.position.y - center.y;
-		newPosition.z = object.position.z - center.z;
-
-		editor.execute( new SetPositionCommand( editor, object, newPosition ) );
-
-	} );
-	options.add( option );
-
-	// Clone
-
-	option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/edit/clone' ) );
-	option.onClick( function () {
-
-		let object = editor.selected;
-
-		if ( object === null || object.parent === null ) return; // avoid cloning the camera or scene
-
-		object = clone( object );
-
-		editor.execute( new AddObjectCommand( editor, object ) );
-
-	} );
-	options.add( option );
-
-	// Delete
-
-	option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/edit/delete' ) );
-	option.add( new UIText( 'DEL' ).setClass( 'key' ) );
-	option.onClick( function () {
-
-		const object = editor.selected;
-
-		if ( object !== null && object.parent !== null ) {
-
-			editor.execute( new RemoveObjectCommand( editor, object ) );
+			editor.removeObject( object );
 
 		}
 
 	} );
+
 	options.add( option );
 
 	return container;
