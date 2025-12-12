@@ -834,3 +834,111 @@ select {
   background-color: rgba(0, 253, 100, 0.15);
   color: #ffffff;
 }
+
+/* ------------------------------
+   SHAPES + STYLE PANEL
+   ------------------------------ */
+
+#sidebar-addshapes {
+  padding: 10px;
+}
+
+/* Title for “Add Shape” and “Style” */
+#sidebar-addshapes .title {
+  font-size: 13px;
+  font-weight: bold;
+  margin: 12px 0 6px;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+  padding-bottom: 4px;
+}
+
+/* Buttons for adding shapes */
+#sidebar-addshapes .buttons .button {
+  cursor: pointer;
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+#sidebar-addshapes .buttons .button:hover {
+  background: #2a2a2a;
+}
+
+/* Divider line between Add Shapes + Style */
+#sidebar-addshapes .separator {
+  margin: 14px 0;
+  height: 1px;
+  background: #333;
+}
+
+/* STYLE SECTION (when object selected) */
+#sidebar-addshapes .section-label {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Color swatches container */
+#sidebar-addshapes .color-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+/* Individual swatches */
+#sidebar-addshapes .color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+#sidebar-addshapes .color-swatch:hover {
+  transform: scale(1.15);
+}
+
+/* Custom color picker */
+#sidebar-addshapes .color-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0 10px;
+}
+
+#sidebar-addshapes .color-picker-row .label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Material preset buttons */
+#sidebar-addshapes .material-row .button {
+  cursor: pointer;
+  padding: 6px 10px;
+  margin: 4px 0;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+#sidebar-addshapes .material-row .button:hover {
+  background: #2a2a2a;
+}
+
+/* When nothing selected, dim the Style UI */
+#sidebar-addshapes.no-selection .section-label,
+#sidebar-addshapes.no-selection .color-swatch-row,
+#sidebar-addshapes.no-selection .color-picker-row,
+#sidebar-addshapes.no-selection .material-row {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
