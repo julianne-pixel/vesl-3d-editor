@@ -9,9 +9,9 @@ import {
 	DodecahedronGeometry,
 	PlaneGeometry,
 	RingGeometry,
+	SphereGeometry,
 	TorusGeometry,
-	Color,
-	DoubleSide
+	Color
 } from 'three';
 
 import { UIPanel, UIRow, UIText, UIColor } from './libs/ui.js';
@@ -125,7 +125,7 @@ function SidebarAddShapes( editor ) {
 		const material = getEditableMaterial();
 		if ( !material ) return;
 
-		// base reset so presets don’t stack weirdly
+		// base reset
 		editor.execute( new SetMaterialValueCommand( editor, material, 'transparent', false ) );
 		editor.execute( new SetMaterialValueCommand( editor, material, 'opacity', 1.0 ) );
 
@@ -240,7 +240,7 @@ function SidebarAddShapes( editor ) {
 	matButton( 'Metal', 'metal' );
 	matButton( 'Glass', 'glass' );
 
-	// ----- enable / disable style section based on selection -----
+	// ----- enable / disable style section -----
 
 	function updateEnabledState( object ) {
 
