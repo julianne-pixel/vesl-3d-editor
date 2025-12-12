@@ -126,6 +126,7 @@ function SidebarAddShapes( editor ) {
 
 	}
 
+
 function applyPreset( preset ) {
 
 	const result = getSelectedMaterial();
@@ -133,55 +134,77 @@ function applyPreset( preset ) {
 
 	const { object, material } = result;
 
+	// remember starting color so presets can build off it
+	const baseColor = material.color.clone();
+
 	// reset baseline so presets don't stack weirdly
-	material.transparent = false;
-	material.opacity = 1.0;
-	material.depthWrite = true;
-	material.metalness = 0.0;
-	material.roughness = 0.5;
+	material.transparent     = false;
+	material.opacity         = 1.0;
+	material.depthWrite      = true;
+	material.metalness       = 0.0;
+	material.roughness       = 0.5;
 	material.envMapIntensity = 1.0;
 
 	if ( material.emissive ) {
 		material.emissive.set( 0x000000 );
 	}
 
+	// give metal/glass something to reflect if available
+	const env = editor.scene && ( editor.scene.environment || editor.scene.background ) || null;
+	if ( env ) {
+		material.envMap = env;
+	}
+
+	// ================= PRESETS =================
+
 	if ( preset === 'matte' ) {
 
-		// very flat / chalky
+		// OPAQUE, totally flat, no shine
+		material.color.copy( baseColor );
 		material.metalness = 0.0;
-		material.roughness = 0.95;
+		material.roughness = 1.0;     // max roughness
+		material.envMapIntensity = 0; // kill reflections
 
 	} else if ( preset === 'plastic' ) {
 
-		// a bit glossier, feels more “toy” plastic
-		material.metalness = 0.0;
-		material.roughness = 0.35;
+		// Same color, pretty shiny “toy plastic”
+		material.color.copy( baseColor );
+		material.metalness = 0.05;
+		material.roughness = 0.22;
+
+		if ( env ) material.envMapIntensity = 1.2;
 
 		if ( material.emissive ) {
-			// tiny glow so it pops more than matte
-			material.emissive.copy( material.color ).multiplyScalar( 0.1 );
+			// subtle glow so it pops more than matte
+			material.emissive.copy( material.color ).multiplyScalar( 0.06 );
 		}
 
 	} else if ( preset === 'metal' ) {
 
-		// super shiny, very reflective
+		// SILVER-tinted + very shiny
+		const silver = new Color( 0xdadada );
+		// keep a hint of original hue but mostly silver
+		silver.lerp( baseColor, 0.2 );
+		material.color.copy( silver );
+
 		material.metalness = 1.0;
-		material.roughness = 0.08;
-		material.envMapIntensity = 2.0;
+		material.roughness = 0.06;
+
+		if ( env ) material.envMapIntensity = 2.2;
 
 	} else if ( preset === 'glass' ) {
 
-		// transparent, thin-glass look
-		material.metalness = 0.0;
-		material.roughness = 0.03;
-		material.transparent = true;
-		material.opacity = 0.18;
-		material.depthWrite = false; // helps see inside better
-		material.envMapIntensity = 1.5;
+		// Keep color, but very transparent + a bit shiny
+		const glassTint = baseColor.clone().lerp( new Color( 0xffffff ), 0.25 );
+		material.color.copy( glassTint );
 
-		// brighten the color towards white so it feels more like tinted glass
-		const glassColor = material.color.clone().lerp( new Color( 0xffffff ), 0.4 );
-		material.color.copy( glassColor );
+		material.metalness    = 0.0;
+		material.roughness    = 0.05;
+		material.transparent  = true;
+		material.opacity      = 0.12;   // very see-through
+		material.depthWrite   = false;  // so you can see inside edges better
+
+		if ( env ) material.envMapIntensity = 1.4;
 	}
 
 	material.needsUpdate = true;
