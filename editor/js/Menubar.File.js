@@ -5,7 +5,6 @@ function MenubarFile( editor ) {
 	const strings = editor.strings;
 
 	const saveArrayBuffer = editor.utils.saveArrayBuffer;
-	const saveString = editor.utils.saveString;
 
 	const container = new UIPanel();
 	container.setClass( 'menu' );
@@ -20,7 +19,7 @@ function MenubarFile( editor ) {
 	container.add( options );
 
 	// ---------------------------------------------------
-	// New (single option – no submenu)
+	// New  (just a single item, no submenu)
 	// ---------------------------------------------------
 
 	let option = new UIRow()
@@ -39,58 +38,54 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
+	// ---------------------------------------------------
+	// Import  (GLB only)
+	// ---------------------------------------------------
 
-// ---------------------------------------------------
-// Import  (GLB only)
-// ---------------------------------------------------
+	const form = document.createElement( 'form' );
+	form.style.display = 'none';
+	document.body.appendChild( form );
 
-const form = document.createElement( 'form' );
-form.style.display = 'none';
-document.body.appendChild( form );
+	const fileInput = document.createElement( 'input' );
+	fileInput.multiple = false;
+	fileInput.type = 'file';
 
-const fileInput = document.createElement( 'input' );
-fileInput.multiple = true;
-fileInput.type = 'file';
+	// Only allow .glb files in the picker
+	fileInput.accept = '.glb,model/gltf-binary';
 
-// Only allow .glb files in the picker
-fileInput.accept = '.glb,model/gltf-binary';
+	fileInput.addEventListener( 'change', function () {
 
-fileInput.addEventListener( 'change', function () {
+		// Optional: guard against anything that slips through
+		const files = Array.from( fileInput.files ).filter( file =>
+			file.name.toLowerCase().endsWith( '.glb' )
+		);
 
-    // Optional: guard against non-glb files if someone forces them in
-    const files = Array.from( fileInput.files ).filter( file =>
-        file.name.toLowerCase().endsWith( '.glb' )
-    );
+		if ( files.length === 0 ) {
 
-    if ( files.length === 0 ) {
+			alert( 'Only .glb files can be imported.' );
+			form.reset();
+			return;
 
-        alert( 'Only .glb files can be imported right now.' );
-        form.reset();
-        return;
+		}
 
-    }
+		editor.loader.loadFiles( files );
+		form.reset();
 
-    // original editor behavior, just with filtered list
-    editor.loader.loadFiles( files );
-    form.reset();
+	} );
 
-} );
+	form.appendChild( fileInput );
 
-form.appendChild( fileInput );
+	option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( strings.getKey( 'menubar/file/import' ) );
 
-option = new UIRow()
-    .setClass( 'option' )
-    .setTextContent( strings.getKey( 'menubar/file/import' ) );
+	option.onClick( function () {
 
-option.onClick( function () {
+		fileInput.click();
 
-    fileInput.click();    // ✅ THIS is the input we created above
+	} );
 
-} );
-
-options.add( option );
-
-
+	options.add( option );
 
 	// ---------------------------------------------------
 	// Download (.glb) – one-click GLB export
@@ -120,58 +115,8 @@ options.add( option );
 			scene,
 			function ( result ) {
 
-				// binary GLB buffer
+				// result is an ArrayBuffer (binary GLB)
 				saveArrayBuffer( result, 'vesl-model.glb' );
-
-			},
-			undefined,
-			{ binary: true, animations: optimizedAnimations }
-		);
-
-	} );
-
-	options.add( option );
-
-	// ---------------------------------------------------
-	// Share (.glb) – download + open email draft
-	// ---------------------------------------------------
-
-	option = new UIRow()
-		.setClass( 'option' )
-		.setTextContent( 'Share (.glb)' );
-
-	option.onClick( async function () {
-
-		const scene = editor.scene;
-		const animations = getAnimations( scene );
-		const optimizedAnimations = [];
-
-		for ( const animation of animations ) {
-
-			optimizedAnimations.push( animation.clone().optimize() );
-
-		}
-
-		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
-		const exporter = new GLTFExporter();
-
-		// 1) Export and download GLB
-		exporter.parse(
-			scene,
-			function ( result ) {
-
-				saveArrayBuffer( result, 'vesl-model.glb' );
-
-				// 2) Open email draft (browser cannot auto-attach the file,
-				//    but this nudges them to attach vesl-model.glb)
-				const subject = encodeURIComponent( 'VESL 3D model' );
-				const body = encodeURIComponent(
-					'Hi!\n\nI exported a 3D model from the VESL editor. ' +
-					'The file is named "vesl-model.glb" – attaching it here.\n\n'
-				);
-
-				window.location.href =
-					'mailto:?subject=' + subject + '&body=' + body;
 
 			},
 			undefined,
