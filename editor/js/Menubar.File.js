@@ -2,10 +2,11 @@ import { UIPanel, UIRow } from './libs/ui.js';
 
 function MenubarFile( editor ) {
 
-const saveArrayBuffer = editor.utils.saveArrayBuffer;
-const saveString = editor.utils.saveString;
-const save = editor.utils.save;
+	// 🔹 this was missing!
+	const strings = editor.strings;
 
+	// we only need this one helper now
+	const saveArrayBuffer = editor.utils.saveArrayBuffer;
 
 	const container = new UIPanel();
 	container.setClass( 'menu' );
@@ -20,7 +21,7 @@ const save = editor.utils.save;
 	container.add( options );
 
 	// ---------------------------------------------------
-	// New  (just a single item, no submenu)
+	// New  (single item, no submenu)
 	// ---------------------------------------------------
 
 	let option = new UIRow()
@@ -51,12 +52,11 @@ const save = editor.utils.save;
 	fileInput.multiple = false;
 	fileInput.type = 'file';
 
-	// Only allow .glb files in the picker
+	// only .glb in picker
 	fileInput.accept = '.glb,model/gltf-binary';
 
 	fileInput.addEventListener( 'change', function () {
 
-		// Optional: guard against anything that slips through
 		const files = Array.from( fileInput.files ).filter( file =>
 			file.name.toLowerCase().endsWith( '.glb' )
 		);
@@ -89,7 +89,7 @@ const save = editor.utils.save;
 	options.add( option );
 
 	// ---------------------------------------------------
-	// Download (.glb) – same logic as three.js "Export GLB"
+	// Download (.glb) – same logic as original Export → GLB
 	// ---------------------------------------------------
 
 	option = new UIRow()
@@ -97,15 +97,6 @@ const save = editor.utils.save;
 		.setTextContent( 'Download (.glb)' );
 
 	option.onClick( async function () {
-
-		// Optional: warn Safari users that downloads can be flaky
-		const isSafari = /^((?!chrome|android).)*safari/i.test( navigator.userAgent );
-		if ( isSafari ) {
-
-			alert( 'Heads up: Download works best in Chrome/Edge. ' +
-				'If this fails in Safari, please try another browser.' );
-
-		}
 
 		const scene = editor.scene;
 		const animations = getAnimations( scene );
@@ -119,15 +110,13 @@ const save = editor.utils.save;
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
-
 		const exporter = new GLTFExporter();
 
 		exporter.parse(
 			scene,
 			function ( result ) {
 
-				// This is exactly what the original editor does:
-				// use the editor's saveArrayBuffer helper.
+				// use editor’s built-in helper
 				saveArrayBuffer( result, 'vesl-model.glb' );
 
 			},
