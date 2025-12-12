@@ -9,15 +9,15 @@ import { SidebarSettings } from './Sidebar.Settings.js';
 
 function Sidebar( editor ) {
 
-    const strings = editor.strings;
+	const strings = editor.strings;
 
-    // THIS is the real sidebar container
-    const container = new UITabbedPanel();
-    container.setId( 'sidebar' );
+	// THIS is the real sidebar container
+	const container = new UITabbedPanel();
+	container.setId( 'sidebar' );
 
-    // --- ADD YOUR PANEL HERE ---
-    const addShapes = new SidebarAddShapes( editor );
-    container.addTab( 'Shapes', addShapes );
+	// --- ADD YOUR PANEL HERE ---
+	const addShapes = new SidebarAddShapes( editor );
+	container.addTab( 'shapes', 'Shapes', addShapes );
 
 	const sidebarProperties = new SidebarProperties( editor );
 
