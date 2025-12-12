@@ -86,6 +86,7 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
+
 // ---------------------------------------------------
 // Download (.glb)
 // ---------------------------------------------------
@@ -149,18 +150,26 @@ function MenubarFile( editor ) {
 
 	}
 
-	// Simple, modern download helper (works in Safari/Chrome/Firefox/Edge)
+	// Download helper – uses File instead of plain Blob
 	function downloadArrayBuffer( buffer, filename ) {
 
-		// GLB = binary glTF
-		const blob = new Blob( [ buffer ], { type: 'model/gltf-binary' } );
+		// Wrap the buffer in a File so the name is attached at the blob level
+		const file = new File(
+			[ buffer ],
+			filename,
+			{ type: 'model/gltf-binary' }
+		);
+
+		const url = URL.createObjectURL( file );
 
 		const link = document.createElement( 'a' );
 		link.style.display = 'none';
-
-		const url = URL.createObjectURL( blob );
 		link.href = url;
 		link.download = filename;
+
+		// (Optional) tiny Safari nudge
+		// const isSafari = /^((?!chrome|android).)*safari/i.test( navigator.userAgent );
+		// if ( isSafari ) link.target = '_blank';
 
 		document.body.appendChild( link );
 		link.click();
