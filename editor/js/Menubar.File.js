@@ -102,9 +102,7 @@ function MenubarFile( editor ) {
 		const optimizedAnimations = [];
 
 		for ( const animation of animations ) {
-
 			optimizedAnimations.push( animation.clone().optimize() );
-
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
@@ -114,8 +112,7 @@ function MenubarFile( editor ) {
 			scene,
 			function ( result ) {
 
-				// Let the editor's own helper handle the download
-				// (this is what the original editor uses)
+				// Use editor's built-in helper — handles Safari/Chrome/Firefox differences
 				saveArrayBuffer( result, 'vesl-model.glb' );
 
 			},
@@ -127,8 +124,7 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
-	
-	//
+	// ---------------------------------------------------
 
 	function getAnimations( scene ) {
 
@@ -136,7 +132,7 @@ function MenubarFile( editor ) {
 
 		scene.traverse( function ( object ) {
 
-			animations.push( ... object.animations );
+			animations.push( ...object.animations );
 
 		} );
 
