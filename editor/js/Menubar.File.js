@@ -43,22 +43,38 @@ function MenubarFile( editor ) {
 	// Import (same behavior as original)
 	// ---------------------------------------------------
 
-	const importForm = document.createElement( 'form' );
-	importForm.style.display = 'none';
-	document.body.appendChild( importForm );
+const form = document.createElement( 'form' );
+form.style.display = 'none';
+document.body.appendChild( form );
 
-	const importInput = document.createElement( 'input' );
-	importInput.multiple = true;
-	importInput.type = 'file';
+const fileInput = document.createElement( 'input' );
+fileInput.multiple = true;
+fileInput.type = 'file';
 
-	importInput.addEventListener( 'change', function () {
+// ✅ Only allow .glb files in the picker
+fileInput.accept = '.glb,model/gltf-binary';
 
-		editor.loader.loadFiles( importInput.files );
-		importForm.reset();
+fileInput.addEventListener( 'change', function () {
 
-	} );
+    // Optional: guard against non-glb files if someone forces them in
+    const files = Array.from( fileInput.files ).filter( file =>
+        file.name.toLowerCase().endsWith( '.glb' )
+    );
 
-	importForm.appendChild( importInput );
+    if ( files.length === 0 ) {
+
+        alert( 'Only .glb files can be imported right now.' );
+        form.reset();
+        return;
+
+    }
+
+    editor.loader.loadFiles( files );
+    form.reset();
+
+} );
+form.appendChild( fileInput );
+
 
 	option = new UIRow()
 		.setClass( 'option' )
