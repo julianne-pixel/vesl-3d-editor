@@ -88,34 +88,24 @@ const save = editor.utils.save;
 
 	options.add( option );
 
-	// Export
+	// ---------------------------------------------------
+	// Download (.glb) – same logic as three.js "Export GLB"
+	// ---------------------------------------------------
 
-	const fileExportSubmenuTitle = new UIRow().setTextContent( strings.getKey( 'menubar/file/export' ) ).addClass( 'option' ).addClass( 'submenu-title' );
-	fileExportSubmenuTitle.onMouseOver( function () {
+	option = new UIRow()
+		.setClass( 'option' )
+		.setTextContent( 'Download (.glb)' );
 
-		const { top, right } = this.dom.getBoundingClientRect();
-		const { paddingTop } = getComputedStyle( this.dom );
-		fileExportSubmenu.setLeft( right + 'px' );
-		fileExportSubmenu.setTop( top - parseFloat( paddingTop ) + 'px' );
-		fileExportSubmenu.setDisplay( 'block' );
-
-	} );
-	fileExportSubmenuTitle.onMouseOut( function () {
-
-		fileExportSubmenu.setDisplay( 'none' );
-
-	} );
-	options.add( fileExportSubmenuTitle );
-
-	const fileExportSubmenu = new UIPanel().setPosition( 'fixed' ).addClass( 'options' ).setDisplay( 'none' );
-	fileExportSubmenuTitle.add( fileExportSubmenu );
-
-	// Export GLB
-
-	option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( 'GLB' );
 	option.onClick( async function () {
+
+		// Optional: warn Safari users that downloads can be flaky
+		const isSafari = /^((?!chrome|android).)*safari/i.test( navigator.userAgent );
+		if ( isSafari ) {
+
+			alert( 'Heads up: Download works best in Chrome/Edge. ' +
+				'If this fails in Safari, please try another browser.' );
+
+		}
 
 		const scene = editor.scene;
 		const animations = getAnimations( scene );
@@ -132,16 +122,24 @@ const save = editor.utils.save;
 
 		const exporter = new GLTFExporter();
 
-		exporter.parse( scene, function ( result ) {
+		exporter.parse(
+			scene,
+			function ( result ) {
 
-			saveArrayBuffer( result, 'scene.glb' );
+				// This is exactly what the original editor does:
+				// use the editor's saveArrayBuffer helper.
+				saveArrayBuffer( result, 'vesl-model.glb' );
 
-		}, undefined, { binary: true, animations: optimizedAnimations } );
+			},
+			undefined,
+			{ binary: true, animations: optimizedAnimations }
+		);
 
 	} );
-	fileExportSubmenu.add( option );
 
-	//
+	options.add( option );
+
+	// ---------------------------------------------------
 
 	function getAnimations( scene ) {
 
@@ -149,7 +147,7 @@ const save = editor.utils.save;
 
 		scene.traverse( function ( object ) {
 
-			animations.push( ... object.animations );
+			animations.push( ...object.animations );
 
 		} );
 
