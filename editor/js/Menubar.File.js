@@ -115,8 +115,25 @@ function MenubarFile( editor ) {
 			function ( result ) {
 
 				// result is an ArrayBuffer (binary GLB)
-				// Safari-safe download using the built-in helper
-				saveArrayBuffer( result, 'vesl-model.glb' );
+				const blob = new Blob( [ result ], { type: 'model/gltf-binary' } );
+				const url = URL.createObjectURL( blob );
+
+				const link = document.createElement( 'a' );
+				link.href = url;
+				link.download = 'vesl-model.glb';
+				link.style.display = 'none';
+				document.body.appendChild( link );
+
+				// trigger download
+				link.click();
+
+				// cleanup (give Safari plenty of time before revoking)
+				setTimeout( function () {
+
+					document.body.removeChild( link );
+					URL.revokeObjectURL( url );
+
+				}, 10000 );
 
 			},
 			undefined,
@@ -126,6 +143,7 @@ function MenubarFile( editor ) {
 	} );
 
 	options.add( option );
+
 
 	// ---------------------------------------------------
 
@@ -148,3 +166,4 @@ function MenubarFile( editor ) {
 }
 
 export { MenubarFile };
+
