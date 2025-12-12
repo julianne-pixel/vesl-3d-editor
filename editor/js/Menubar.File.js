@@ -39,9 +39,10 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
-	// ---------------------------------------------------
-	// Import (same behavior as original)
-	// ---------------------------------------------------
+
+// ---------------------------------------------------
+// Import  (GLB only)
+// ---------------------------------------------------
 
 const form = document.createElement( 'form' );
 form.style.display = 'none';
@@ -51,11 +52,12 @@ const fileInput = document.createElement( 'input' );
 fileInput.multiple = true;
 fileInput.type = 'file';
 
-// Only allow .glb
+// Only allow .glb files in the picker
 fileInput.accept = '.glb,model/gltf-binary';
 
 fileInput.addEventListener( 'change', function () {
 
+    // Optional: guard against non-glb files if someone forces them in
     const files = Array.from( fileInput.files ).filter( file =>
         file.name.toLowerCase().endsWith( '.glb' )
     );
@@ -68,6 +70,7 @@ fileInput.addEventListener( 'change', function () {
 
     }
 
+    // original editor behavior, just with filtered list
     editor.loader.loadFiles( files );
     form.reset();
 
@@ -75,14 +78,13 @@ fileInput.addEventListener( 'change', function () {
 
 form.appendChild( fileInput );
 
-// Menu item
 option = new UIRow()
     .setClass( 'option' )
     .setTextContent( strings.getKey( 'menubar/file/import' ) );
 
 option.onClick( function () {
 
-    fileInput.click();   // ✅ Corrected line
+    fileInput.click();    // ✅ THIS is the input we created above
 
 } );
 
