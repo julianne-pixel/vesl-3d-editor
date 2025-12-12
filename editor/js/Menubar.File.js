@@ -108,7 +108,6 @@ function MenubarFile( editor ) {
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
-
 		const exporter = new GLTFExporter();
 
 		exporter.parse(
@@ -116,6 +115,7 @@ function MenubarFile( editor ) {
 			function ( result ) {
 
 				// result is an ArrayBuffer (binary GLB)
+				// Safari-safe download using the built-in helper
 				saveArrayBuffer( result, 'vesl-model.glb' );
 
 			},
@@ -148,4 +148,3 @@ function MenubarFile( editor ) {
 }
 
 export { MenubarFile };
-
