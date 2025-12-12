@@ -2,11 +2,8 @@ import { UIPanel, UIRow } from './libs/ui.js';
 
 function MenubarFile( editor ) {
 
-	// 🔹 this was missing!
+	// i18n strings from editor
 	const strings = editor.strings;
-
-	// we only need this one helper now
-	const saveArrayBuffer = editor.utils.saveArrayBuffer;
 
 	const container = new UIPanel();
 	container.setClass( 'menu' );
@@ -21,7 +18,7 @@ function MenubarFile( editor ) {
 	container.add( options );
 
 	// ---------------------------------------------------
-	// New  (single item, no submenu)
+	// New (single item)
 	// ---------------------------------------------------
 
 	let option = new UIRow()
@@ -41,7 +38,7 @@ function MenubarFile( editor ) {
 	options.add( option );
 
 	// ---------------------------------------------------
-	// Import  (GLB only)
+	// Import (.glb only)
 	// ---------------------------------------------------
 
 	const form = document.createElement( 'form' );
@@ -52,11 +49,12 @@ function MenubarFile( editor ) {
 	fileInput.multiple = false;
 	fileInput.type = 'file';
 
-	// only .glb in picker
+	// Only allow .glb files in the picker
 	fileInput.accept = '.glb,model/gltf-binary';
 
 	fileInput.addEventListener( 'change', function () {
 
+		// Extra guard in case something weird slips through
 		const files = Array.from( fileInput.files ).filter( file =>
 			file.name.toLowerCase().endsWith( '.glb' )
 		);
@@ -89,7 +87,7 @@ function MenubarFile( editor ) {
 	options.add( option );
 
 	// ---------------------------------------------------
-	// Download (.glb) – same logic as original Export → GLB
+	// Download (.glb)
 	// ---------------------------------------------------
 
 	option = new UIRow()
@@ -99,15 +97,9 @@ function MenubarFile( editor ) {
 	option.onClick( async function () {
 
 		const scene = editor.scene;
-		const animations = getAnimations( scene );
 
-		const optimizedAnimations = [];
-
-		for ( const animation of animations ) {
-
-			optimizedAnimations.push( animation.clone().optimize() );
-
-		}
+		// Collect and optimize any animations on the scene
+		const animations = getAnimations( scene ).map( anim => anim.clone().optimize() );
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
 		const exporter = new GLTFExporter();
@@ -116,18 +108,20 @@ function MenubarFile( editor ) {
 			scene,
 			function ( result ) {
 
-				// use editor’s built-in helper
-				saveArrayBuffer( result, 'vesl-model.glb' );
+				// result is an ArrayBuffer for binary export
+				downloadArrayBuffer( result, 'vesl-model.glb' );
 
 			},
 			undefined,
-			{ binary: true, animations: optimizedAnimations }
+			{ binary: true, animations: animations }
 		);
 
 	} );
 
 	options.add( option );
 
+	// ---------------------------------------------------
+	// Helpers
 	// ---------------------------------------------------
 
 	function getAnimations( scene ) {
@@ -136,11 +130,68 @@ function MenubarFile( editor ) {
 
 		scene.traverse( function ( object ) {
 
-			animations.push( ...object.animations );
+			if ( object.animations && object.animations.length ) {
+
+				animations.push( ...object.animations );
+
+			}
 
 		} );
 
 		return animations;
+
+	}
+
+	// Safari–friendly download helper
+	function downloadArrayBuffer( buffer, filename ) {
+
+		const blob = new Blob( [ buffer ], { type: 'application/octet-stream' } );
+		const link = document.createElement( 'a' );
+		link.style.display = 'none';
+
+		const isSafari = /^((?!chrome|android).)*safari/i.test( navigator.userAgent );
+
+		if ( isSafari && typeof FileReader !== 'undefined' ) {
+
+			// Safari sometimes hates blob: URLs; use Data URL fallback
+			const reader = new FileReader();
+
+			reader.onloadend = function () {
+
+				link.href = reader.result; // data: URL
+				link.download = filename;
+
+				document.body.appendChild( link );
+				link.click();
+
+				setTimeout( function () {
+
+					document.body.removeChild( link );
+
+				}, 2000 );
+
+			};
+
+			reader.readAsDataURL( blob );
+
+		} else {
+
+			// Normal path (Chrome/Firefox/Edge, etc.)
+			const url = URL.createObjectURL( blob );
+			link.href = url;
+			link.download = filename;
+
+			document.body.appendChild( link );
+			link.click();
+
+			setTimeout( function () {
+
+				document.body.removeChild( link );
+				URL.revokeObjectURL( url );
+
+			}, 2000 );
+
+		}
 
 	}
 
