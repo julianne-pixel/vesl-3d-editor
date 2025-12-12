@@ -16,8 +16,6 @@ import {
 
 import { UIPanel, UIRow, UIText, UIColor } from './libs/ui.js';
 import { AddObjectCommand } from './commands/AddObjectCommand.js';
-import { SetMaterialColorCommand } from './commands/SetMaterialColorCommand.js';
-import { SetMaterialValueCommand } from './commands/SetMaterialValueCommand.js';
 
 function SidebarAddShapes( editor ) {
 
@@ -95,7 +93,7 @@ function SidebarAddShapes( editor ) {
 	styleHint.setClass( 'section-label' );
 	container.add( styleHint );
 
-	// ----- helpers -----
+	// ---------- helpers ----------
 
 	function getEditableMaterial() {
 
@@ -115,8 +113,14 @@ function SidebarAddShapes( editor ) {
 		const material = getEditableMaterial();
 		if ( !material ) return;
 
-		const newColor = new Color( hex );
-		editor.execute( new SetMaterialColorCommand( editor, material, 'color', newColor ) );
+		material.color.set( hex );
+		material.needsUpdate = true;
+
+		if ( editor.selected ) {
+
+			signals.objectChanged.dispatch( editor.selected );
+
+		}
 
 	}
 
@@ -125,37 +129,45 @@ function SidebarAddShapes( editor ) {
 		const material = getEditableMaterial();
 		if ( !material ) return;
 
-		// base reset
-		editor.execute( new SetMaterialValueCommand( editor, material, 'transparent', false ) );
-		editor.execute( new SetMaterialValueCommand( editor, material, 'opacity', 1.0 ) );
+		// reset baseline so presets don’t stack weirdly
+		material.transparent = false;
+		material.opacity = 1.0;
 
 		if ( preset === 'matte' ) {
 
-			editor.execute( new SetMaterialValueCommand( editor, material, 'metalness', 0.0 ) );
-			editor.execute( new SetMaterialValueCommand( editor, material, 'roughness', 1.0 ) );
+			material.metalness = 0.0;
+			material.roughness = 1.0;
 
 		} else if ( preset === 'plastic' ) {
 
-			editor.execute( new SetMaterialValueCommand( editor, material, 'metalness', 0.2 ) );
-			editor.execute( new SetMaterialValueCommand( editor, material, 'roughness', 0.4 ) );
+			material.metalness = 0.2;
+			material.roughness = 0.4;
 
 		} else if ( preset === 'metal' ) {
 
-			editor.execute( new SetMaterialValueCommand( editor, material, 'metalness', 1.0 ) );
-			editor.execute( new SetMaterialValueCommand( editor, material, 'roughness', 0.2 ) );
+			material.metalness = 1.0;
+			material.roughness = 0.2;
 
 		} else if ( preset === 'glass' ) {
 
-			editor.execute( new SetMaterialValueCommand( editor, material, 'metalness', 0.25 ) );
-			editor.execute( new SetMaterialValueCommand( editor, material, 'roughness', 0.1 ) );
-			editor.execute( new SetMaterialValueCommand( editor, material, 'transparent', true ) );
-			editor.execute( new SetMaterialValueCommand( editor, material, 'opacity', 0.25 ) );
+			material.metalness = 0.25;
+			material.roughness = 0.1;
+			material.transparent = true;
+			material.opacity = 0.25;
+
+		}
+
+		material.needsUpdate = true;
+
+		if ( editor.selected ) {
+
+			signals.objectChanged.dispatch( editor.selected );
 
 		}
 
 	}
 
-	// ----- color swatches -----
+	// ---------- color swatches ----------
 
 	const colorsLabel = new UIText( 'Color' );
 	colorsLabel.setClass( 'section-label' );
@@ -190,7 +202,7 @@ function SidebarAddShapes( editor ) {
 
 	} );
 
-	// full color picker
+	// ---------- full color picker ----------
 
 	const pickerRow = new UIRow();
 	pickerRow.setClass( 'color-picker-row' );
@@ -209,7 +221,7 @@ function SidebarAddShapes( editor ) {
 
 	pickerRow.add( colorInput );
 
-	// ----- material presets -----
+	// ---------- material presets ----------
 
 	const matLabel = new UIText( 'Material' );
 	matLabel.setClass( 'section-label' );
@@ -240,7 +252,7 @@ function SidebarAddShapes( editor ) {
 	matButton( 'Metal', 'metal' );
 	matButton( 'Glass', 'glass' );
 
-	// ----- enable / disable style section -----
+	// ---------- enable / disable style section ----------
 
 	function updateEnabledState( object ) {
 
