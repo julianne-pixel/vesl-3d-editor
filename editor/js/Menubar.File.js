@@ -2,9 +2,10 @@ import { UIPanel, UIRow } from './libs/ui.js';
 
 function MenubarFile( editor ) {
 
-	const strings = editor.strings;
+const saveArrayBuffer = editor.utils.saveArrayBuffer;
+const saveString = editor.utils.saveString;
+const save = editor.utils.save;
 
-	const saveArrayBuffer = editor.utils.saveArrayBuffer;
 
 	const container = new UIPanel();
 	container.setClass( 'menu' );
@@ -88,7 +89,7 @@ function MenubarFile( editor ) {
 	options.add( option );
 
 	// ---------------------------------------------------
-	// Download (.glb) – use built-in saveArrayBuffer helper
+	// Download (.glb) – one-click GLB export
 	// ---------------------------------------------------
 
 	option = new UIRow()
@@ -102,7 +103,9 @@ function MenubarFile( editor ) {
 		const optimizedAnimations = [];
 
 		for ( const animation of animations ) {
+
 			optimizedAnimations.push( animation.clone().optimize() );
+
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
@@ -112,8 +115,12 @@ function MenubarFile( editor ) {
 			scene,
 			function ( result ) {
 
-				// Use editor's built-in helper — handles Safari/Chrome/Firefox differences
-				saveArrayBuffer( result, 'vesl-model.glb' );
+				// result is an ArrayBuffer – wrap it in a Blob
+				const blob = new Blob( [ result ], { type: 'model/gltf-binary' } );
+
+				// Use the editor's built-in "save" helper, which
+				// handles Safari/Chrome/Firefox differences
+				save( blob, 'vesl-model.glb' );
 
 			},
 			undefined,
