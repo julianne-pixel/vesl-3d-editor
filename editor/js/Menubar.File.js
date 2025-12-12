@@ -86,9 +86,9 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
-	// ---------------------------------------------------
-	// Download (.glb)
-	// ---------------------------------------------------
+// ---------------------------------------------------
+// Download (.glb)
+// ---------------------------------------------------
 
 	option = new UIRow()
 		.setClass( 'option' )
@@ -99,7 +99,14 @@ function MenubarFile( editor ) {
 		const scene = editor.scene;
 
 		// Collect and optimize any animations on the scene
-		const animations = getAnimations( scene ).map( anim => anim.clone().optimize() );
+		const animations = getAnimations( scene ).map( anim => {
+
+			// Some animation clips may not have optimize()
+			return ( typeof anim.clone === 'function' && typeof anim.optimize === 'function' )
+				? anim.clone().optimize()
+				: anim;
+
+		} );
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
 		const exporter = new GLTFExporter();
@@ -142,56 +149,28 @@ function MenubarFile( editor ) {
 
 	}
 
-	// Safari–friendly download helper
+	// Simple, modern download helper (works in Safari/Chrome/Firefox/Edge)
 	function downloadArrayBuffer( buffer, filename ) {
 
-		const blob = new Blob( [ buffer ], { type: 'application/octet-stream' } );
+		// GLB = binary glTF
+		const blob = new Blob( [ buffer ], { type: 'model/gltf-binary' } );
+
 		const link = document.createElement( 'a' );
 		link.style.display = 'none';
 
-		const isSafari = /^((?!chrome|android).)*safari/i.test( navigator.userAgent );
+		const url = URL.createObjectURL( blob );
+		link.href = url;
+		link.download = filename;
 
-		if ( isSafari && typeof FileReader !== 'undefined' ) {
+		document.body.appendChild( link );
+		link.click();
 
-			// Safari sometimes hates blob: URLs; use Data URL fallback
-			const reader = new FileReader();
+		setTimeout( function () {
 
-			reader.onloadend = function () {
+			document.body.removeChild( link );
+			URL.revokeObjectURL( url );
 
-				link.href = reader.result; // data: URL
-				link.download = filename;
-
-				document.body.appendChild( link );
-				link.click();
-
-				setTimeout( function () {
-
-					document.body.removeChild( link );
-
-				}, 2000 );
-
-			};
-
-			reader.readAsDataURL( blob );
-
-		} else {
-
-			// Normal path (Chrome/Firefox/Edge, etc.)
-			const url = URL.createObjectURL( blob );
-			link.href = url;
-			link.download = filename;
-
-			document.body.appendChild( link );
-			link.click();
-
-			setTimeout( function () {
-
-				document.body.removeChild( link );
-				URL.revokeObjectURL( url );
-
-			}, 2000 );
-
-		}
+		}, 2000 );
 
 	}
 
