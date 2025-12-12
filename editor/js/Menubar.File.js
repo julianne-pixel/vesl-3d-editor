@@ -87,18 +87,16 @@ function MenubarFile( editor ) {
 
 	options.add( option );
 
-	// ---------------------------------------------------
-	// Download (.glb) – one-click GLB export
-	// ---------------------------------------------------
+	// Export GLB
 
-	option = new UIRow()
-		.setClass( 'option' )
-		.setTextContent( 'Download (.glb)' );
-
+	option = new UIRow();
+	option.setClass( 'option' );
+	option.setTextContent( 'GLB' );
 	option.onClick( async function () {
 
 		const scene = editor.scene;
 		const animations = getAnimations( scene );
+
 		const optimizedAnimations = [];
 
 		for ( const animation of animations ) {
@@ -108,44 +106,18 @@ function MenubarFile( editor ) {
 		}
 
 		const { GLTFExporter } = await import( 'three/addons/exporters/GLTFExporter.js' );
+
 		const exporter = new GLTFExporter();
 
-		exporter.parse(
-			scene,
-			function ( result ) {
+		exporter.parse( scene, function ( result ) {
 
-				// result is an ArrayBuffer (binary GLB)
-				const blob = new Blob( [ result ], { type: 'model/gltf-binary' } );
-				const url = URL.createObjectURL( blob );
+			saveArrayBuffer( result, 'scene.glb' );
 
-				const link = document.createElement( 'a' );
-				link.href = url;
-				link.download = 'vesl-model.glb';
-				link.style.display = 'none';
-				document.body.appendChild( link );
-
-				// trigger download
-				link.click();
-
-				// cleanup (give Safari plenty of time before revoking)
-				setTimeout( function () {
-
-					document.body.removeChild( link );
-					URL.revokeObjectURL( url );
-
-				}, 10000 );
-
-			},
-			undefined,
-			{ binary: true, animations: optimizedAnimations }
-		);
+		}, undefined, { binary: true, animations: optimizedAnimations } );
 
 	} );
-
-	options.add( option );
-
-
-	// ---------------------------------------------------
+	fileExportSubmenu.add( option );
+	//
 
 	function getAnimations( scene ) {
 
@@ -153,7 +125,7 @@ function MenubarFile( editor ) {
 
 		scene.traverse( function ( object ) {
 
-			animations.push( ...object.animations );
+			animations.push( ... object.animations );
 
 		} );
 
@@ -166,4 +138,3 @@ function MenubarFile( editor ) {
 }
 
 export { MenubarFile };
-
