@@ -95,41 +95,45 @@ function SidebarAddShapes( editor ) {
 
 	// ---------- helpers ----------
 
-	function getEditableMaterial() {
+	function getSelectedMaterial() {
 
 		const object = editor.selected;
-		if ( !object || !object.isMesh ) return null;
+		if ( !object ) return null;
 
 		let material = object.material;
 		if ( Array.isArray( material ) ) material = material[ 0 ];
 		if ( !material || !material.isMaterial ) return null;
 
-		return material;
+		return { object, material };
 
 	}
 
 	function applyColor( hex ) {
 
-		const material = getEditableMaterial();
-		if ( !material ) return;
+		const result = getSelectedMaterial();
+		if ( !result ) return;
 
-		material.color.set( hex );
-		material.needsUpdate = true;
+		const { object, material } = result;
 
-		if ( editor.selected ) {
-
-			signals.objectChanged.dispatch( editor.selected );
-
+		material.color.set( new Color( hex ) );
+		// a tiny emissive tweak so the color “pops” even in meh lighting
+		if ( material.emissive ) {
+			material.emissive.set( new Color( hex ).multiplyScalar( 0.15 ) );
 		}
+
+		material.needsUpdate = true;
+		signals.objectChanged.dispatch( object );
 
 	}
 
 	function applyPreset( preset ) {
 
-		const material = getEditableMaterial();
-		if ( !material ) return;
+		const result = getSelectedMaterial();
+		if ( !result ) return;
 
-		// reset baseline so presets don’t stack weirdly
+		const { object, material } = result;
+
+		// reset baseline
 		material.transparent = false;
 		material.opacity = 1.0;
 
@@ -158,12 +162,7 @@ function SidebarAddShapes( editor ) {
 		}
 
 		material.needsUpdate = true;
-
-		if ( editor.selected ) {
-
-			signals.objectChanged.dispatch( editor.selected );
-
-		}
+		signals.objectChanged.dispatch( object );
 
 	}
 
@@ -251,23 +250,6 @@ function SidebarAddShapes( editor ) {
 	matButton( 'Plastic', 'plastic' );
 	matButton( 'Metal', 'metal' );
 	matButton( 'Glass', 'glass' );
-
-	// ---------- enable / disable style section ----------
-
-	function updateEnabledState( object ) {
-
-		const hasMaterial = object && object.isMesh;
-		container.dom.classList.toggle( 'no-selection', !hasMaterial );
-
-	}
-
-	signals.objectSelected.add( function ( object ) {
-
-		updateEnabledState( object );
-
-	} );
-
-	updateEnabledState( editor.selected );
 
 	return container;
 
