@@ -957,14 +957,23 @@ select {
   margin-right: 0;
 }
 
-/* Hide camera + shading mode controls (top-right) */
-#viewport .viewport-controls {
-	display: none !important;
+/* Hide top-right camera + shading UI */
+#viewport .controls,
+#viewport .viewport-controls,
+#viewport #viewportControls,
+#viewport #viewport-controls{
+  display: none !important;
+  visibility: hidden !important;
 }
 
-/* Hide stats overlay (bottom-left) */
-#viewport .viewport-info {
-	display: none !important;
+/* Hide bottom-left stats UI */
+#viewport .info,
+#viewport .viewport-info,
+#viewport #info,
+#viewport #viewportInfo,
+#viewport #viewport-info{
+  display: none !important;
+  visibility: hidden !important;
 }
 
 
