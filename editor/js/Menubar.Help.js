@@ -2,69 +2,35 @@ import { UIPanel, UIRow } from './libs/ui.js';
 
 function MenubarHelp( editor ) {
 
-	const strings = editor.strings;
-
 	const container = new UIPanel();
 	container.setClass( 'menu' );
 
 	const title = new UIPanel();
 	title.setClass( 'title' );
-	title.setTextContent( strings.getKey( 'menubar/help' ) );
+	title.setTextContent( 'Help' );
 	container.add( title );
 
 	const options = new UIPanel();
 	options.setClass( 'options' );
 	container.add( options );
 
-	// Source code
-
-	let option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/help/source_code' ) );
-	option.onClick( function () {
-
-		window.open( 'https://github.com/mrdoob/three.js/tree/master/editor', '_blank' );
-
+	// Get Help -> mailto
+	const getHelp = new UIRow();
+	getHelp.setClass( 'option' );
+	getHelp.setTextContent( 'Get Help' );
+	getHelp.onClick( function () {
+		window.location.href = 'mailto:support@thenotwork.org';
 	} );
-	options.add( option );
+	options.add( getHelp );
 
-	/*
-	// Icon
-
-	let option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/help/icons' ) );
-	option.onClick( function () {
-
-		window.open( 'https://www.flaticon.com/packs/interface-44', '_blank' );
-
+	// Learn -> thenotwork.org (for now)
+	const learn = new UIRow();
+	learn.setClass( 'option' );
+	learn.setTextContent( 'Learn' );
+	learn.onClick( function () {
+		window.open( 'https://thenotwork.org', '_blank' );
 	} );
-	options.add( option );
-	*/
-
-	// About
-
-	option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/help/about' ) );
-	option.onClick( function () {
-
-		window.open( 'https://threejs.org', '_blank' );
-
-	} );
-	options.add( option );
-
-	// Manual
-
-	option = new UIRow();
-	option.setClass( 'option' );
-	option.setTextContent( strings.getKey( 'menubar/help/manual' ) );
-	option.onClick( function () {
-
-		window.open( 'https://github.com/mrdoob/three.js/wiki/Editor-Manual', '_blank' );
-
-	} );
-	options.add( option );
+	options.add( learn );
 
 	return container;
 
