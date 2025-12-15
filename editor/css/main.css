@@ -943,19 +943,15 @@ select {
 }
 
 /* =========================================================
-   VESL MODE — Hide unused editor tabs
+   VESL MODE — Hide sidebar tabs except SHAPES
+   (Do NOT touch the top File/Help menu)
    ========================================================= */
 
-.Menubar .menu:nth-child(2), /* Scene */
-.Menubar .menu:nth-child(3), /* Project */
-.Menubar .menu:nth-child(4)  /* Settings */
-{
+#sidebar.TabbedPanel .Tabs .Tab:not(#shapes){
   display: none !important;
 }
 
-/* Optional: tighten spacing so Shapes feels intentional */
-.Menubar .menu:first-child {
-  margin-right: 0;
+/* Optional: remove the right border line that expects other tabs */
+#sidebar.TabbedPanel .Tabs .Tab#shapes{
+  border-right: none !important;
 }
-
-
