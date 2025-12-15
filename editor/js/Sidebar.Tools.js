@@ -22,18 +22,39 @@ function SidebarTools( editor ) {
 	hintRow.add( hint );
 	container.add( hintRow );
 
-	function makeToolButton( label, mode ) {
+	let isEnabled = false;
+
+	function makeToolButton( icon, label, mode, keyHint ) {
 
 		const row = new UIRow();
 
-		const btn = new UIButton( label );
+		// Create button with custom layout (left label + right shortcut)
+		const btn = new UIButton( '' );
 		btn.setWidth( '100%' );
+
+		btn.dom.style.display = 'flex';
+		btn.dom.style.alignItems = 'center';
+		btn.dom.style.justifyContent = 'space-between';
+		btn.dom.style.gap = '10px';
+
+		const left = document.createElement( 'span' );
+		left.textContent = `${icon}  ${label}`;
+		left.style.display = 'inline-flex';
+		left.style.alignItems = 'center';
+		left.style.gap = '8px';
+
+		const right = document.createElement( 'span' );
+		right.textContent = keyHint ? keyHint : '';
+		right.style.opacity = '0.6';
+		right.style.fontSize = '12px';
+		right.style.letterSpacing = '0.5px';
+
+		btn.dom.appendChild( left );
+		btn.dom.appendChild( right );
 
 		btn.onClick( function () {
 
-			// extra safety: ignore clicks while disabled
 			if ( btn.dom.classList.contains( 'disabled' ) ) return;
-
 			signals.transformModeChanged.dispatch( mode );
 
 		} );
@@ -45,9 +66,11 @@ function SidebarTools( editor ) {
 
 	}
 
-	const btnMove = makeToolButton( 'Move', 'translate' );
-	const btnRotate = makeToolButton( 'Rotate', 'rotate' );
-	const btnResize = makeToolButton( 'Resize', 'scale' );
+	// Icons are unicode so we don't need assets
+	// Shortcuts match the common Three.js editor defaults: W/E/R
+	const btnMove = makeToolButton( '⇄', 'Move', 'translate', 'W' );
+	const btnRotate = makeToolButton( '⟳', 'Rotate', 'rotate', 'E' );
+	const btnResize = makeToolButton( '⤢', 'Resize', 'scale', 'R' );
 
 	const buttons = [ btnMove, btnRotate, btnResize ];
 
@@ -59,11 +82,38 @@ function SidebarTools( editor ) {
 
 	}
 
-	// ----------------------------------
-	// Enable / Disable helpers
-	// ----------------------------------
+	function setHintForMode( mode ) {
+
+		if ( !isEnabled ) {
+			hint.setValue( 'Select an object to enable tools.' );
+			return;
+		}
+
+		switch ( mode ) {
+
+			case 'translate':
+				hint.setValue( 'Move (W): drag the arrows to slide your object.' );
+				break;
+
+			case 'rotate':
+				hint.setValue( 'Rotate (E): drag the rings to spin your object.' );
+				break;
+
+			case 'scale':
+				hint.setValue( 'Resize (R): drag the boxes to make it bigger or smaller.' );
+				break;
+
+			default:
+				hint.setValue( 'Choose a tool to move, rotate, or resize.' );
+				break;
+
+		}
+
+	}
 
 	function setEnabled( enabled ) {
+
+		isEnabled = enabled;
 
 		buttons.forEach( btn => {
 
@@ -74,23 +124,18 @@ function SidebarTools( editor ) {
 		} );
 
 		if ( enabled === false ) {
-
 			clearSelectedState();
-
+			setHintForMode();
+		} else {
+			hint.setValue( 'Choose a tool to move, rotate, or resize.' );
 		}
-
-		hint.setValue(
-			enabled
-				? 'Choose a tool to move, rotate, or resize.'
-				: 'Select an object to enable tools.'
-		);
 
 	}
 
 	// Start disabled
 	setEnabled( false );
 
-	// ✅ Single source of truth: selection changes are emitted via objectSelected
+	// Selection changes (single source of truth)
 	signals.objectSelected.add( function ( object ) {
 
 		if ( object ) {
@@ -109,7 +154,7 @@ function SidebarTools( editor ) {
 
 	} );
 
-	// Keep UI in sync with transform mode (only matters when enabled)
+	// Keep UI in sync with transform mode
 	signals.transformModeChanged.add( function ( mode ) {
 
 		clearSelectedState();
@@ -117,6 +162,8 @@ function SidebarTools( editor ) {
 		if ( mode === 'translate' ) btnMove.dom.classList.add( 'selected' );
 		if ( mode === 'rotate' ) btnRotate.dom.classList.add( 'selected' );
 		if ( mode === 'scale' ) btnResize.dom.classList.add( 'selected' );
+
+		setHintForMode( mode );
 
 	} );
 
