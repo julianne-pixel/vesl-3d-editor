@@ -2,7 +2,8 @@
 
 import {
 	Mesh,
-	MeshStandardMaterial,
+	MeshBasicMaterial,
+	DoubleSide,
 	BoxGeometry,
 	CircleGeometry,
 	CylinderGeometry,
@@ -54,7 +55,7 @@ function SidebarAddShapes( editor ) {
 	container.dom.appendChild( styleTag );
 
 	// =====================================================
-	// Defaults (COLOR ONLY)
+	// Defaults
 	// =====================================================
 
 	const DEFAULT_COLOR = '#000000';
@@ -63,7 +64,7 @@ function SidebarAddShapes( editor ) {
 
 		object.userData = object.userData || {};
 
-		// normalize to string
+		// normalize to string (older builds might have stored other types)
 		if ( typeof object.userData.veslColor !== 'string' ) object.userData.veslColor = DEFAULT_COLOR;
 
 	}
@@ -82,7 +83,8 @@ function SidebarAddShapes( editor ) {
 	}
 
 	// =====================================================
-	// Material application (single source of truth = userData.veslColor)
+	// Material application (ONLY color; no presets)
+	// Uses MeshBasicMaterial so color always shows.
 	// =====================================================
 
 	function applyStateToMaterial( object, material ) {
@@ -91,25 +93,23 @@ function SidebarAddShapes( editor ) {
 
 		const hex = object.userData.veslColor;
 
-		// color
+		// set the visible color
 		if ( material.color ) material.color.set( hex );
 
-		// strip anything that can hijack color
+		// strip anything that could override appearance
 		if ( material.map ) material.map = null;
 		if ( material.emissive ) material.emissive.set( 0x000000 );
 
-		// HARD-LOCK a simple matte look (no presets)
 		material.transparent = false;
 		material.opacity = 1.0;
 		material.depthWrite = true;
+		material.depthTest = true;
 
-		if ( 'metalness' in material ) material.metalness = 0.0;
-		if ( 'roughness' in material ) material.roughness = 1.0;
-		if ( 'envMapIntensity' in material ) material.envMapIntensity = 0;
+		// helps 2D stuff like Plane/Circle/Ring show from either side
+		material.side = DoubleSide;
 
 		material.needsUpdate = true;
 
-		// tell editor “this changed”
 		if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
 		signals.objectChanged.dispatch( object );
 
@@ -130,10 +130,9 @@ function SidebarAddShapes( editor ) {
 
 	function makeDefaultMaterial() {
 
-		return new MeshStandardMaterial( {
+		return new MeshBasicMaterial( {
 			color: 0x000000,
-			metalness: 0.0,
-			roughness: 1.0
+			side: DoubleSide
 		} );
 
 	}
@@ -176,7 +175,7 @@ function SidebarAddShapes( editor ) {
 	addShapeButton( 'Tube', () => new TorusGeometry( 1, 0.35, 16, 48 ) );
 
 	// =====================================================
-	// 2. STYLE (COLOR ONLY)
+	// 2. STYLE (Color only)
 	// =====================================================
 
 	const separator = new UIRow();
@@ -241,9 +240,10 @@ function SidebarAddShapes( editor ) {
 		if ( ! result ) return;
 
 		const { object, material } = result;
-		ensureUserData( object );
 
+		ensureUserData( object );
 		object.userData.veslColor = colorInput.getValue();
+
 		applyStateToMaterial( object, material );
 
 	} );
@@ -270,8 +270,8 @@ function SidebarAddShapes( editor ) {
 			if ( ! result ) return;
 
 			const { object, material } = result;
-			ensureUserData( object );
 
+			ensureUserData( object );
 			object.userData.veslColor = hex;
 
 			setSelectedSwatchRow( swatch );
@@ -290,7 +290,7 @@ function SidebarAddShapes( editor ) {
 	} );
 
 	// =====================================================
-	// Sync: ALWAYS re-apply from userData (beats overwrites)
+	// Sync on selection/change
 	// =====================================================
 
 	let syncing = false;
@@ -301,9 +301,11 @@ function SidebarAddShapes( editor ) {
 		syncing = true;
 
 		const result = getSelectedMaterial();
+
 		if ( ! result ) {
 
 			setSelectedSwatchRow( null );
+
 			syncing = false;
 			return;
 
@@ -313,7 +315,7 @@ function SidebarAddShapes( editor ) {
 
 		ensureUserData( object );
 
-		// Snap the material back to state every time selection changes
+		// Re-apply from userData every time (keeps it consistent)
 		applyStateToMaterial( object, material );
 
 		syncSwatchToHex( object.userData.veslColor );
