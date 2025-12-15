@@ -942,6 +942,20 @@ select {
   pointer-events: none;
 }
 
+/* Hide sidebar tabs (Scene/Project/Settings) — keep Shapes */
+#sidebar .Tabs .Tab#scene,
+#sidebar .Tabs .Tab#project,
+#sidebar .Tabs .Tab#settings {
+  display: none !important;
+}
+
+/* Make Shapes feel like the only tab */
+#sidebar .Tabs {
+  border-right: none;
+}
+#sidebar .Tabs .Tab#shapes {
+  margin-right: 0;
+}
 
 
 
