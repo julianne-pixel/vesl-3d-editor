@@ -957,34 +957,12 @@ select {
   margin-right: 0;
 }
 
-/* Hide top-right camera + shading UI (regardless of where it mounts) */
-.viewport-controls,
-.viewportControls,
-.ViewportControls,
-#viewport-controls,
-#viewportControls,
-#viewport-controls-container,
-#viewportControlsContainer {
+/* Hide CAMERA / SOLID dropdowns */
+#viewport > .Panel:has(select.Select) {
   display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
 }
 
-
-/* Hide bottom-left stats UI */
-#viewport .info,
-#viewport .viewport-info,
-#viewport #info,
-#viewport #viewportInfo,
-#viewport #viewport-info{
+/* Hide bottom-left stats */
+#viewport #info {
   display: none !important;
-  visibility: hidden !important;
 }
-
-/* Common inner controls row wrappers */
-.viewport-controls * ,
-.viewportControls * ,
-.ViewportControls * {
-  pointer-events: none !important;
-}
-
