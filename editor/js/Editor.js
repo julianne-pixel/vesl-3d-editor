@@ -95,9 +95,11 @@ function Editor() {
 		pathTracerUpdated: new Signal(),
 
 	};
-
 	this.config = new Config();
-	this.history = new _History( this );
+this.config.setKey( 'autosave', true );
+
+this.history = new _History( this );
+
 	this.selector = new Selector( this );
 	this.storage = new _Storage();
 	this.strings = new Strings( this.config );
