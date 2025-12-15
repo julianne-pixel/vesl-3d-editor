@@ -30,8 +30,12 @@ function SidebarTools( editor ) {
 		btn.setWidth( '100%' );
 
 		btn.onClick( function () {
+
+			// extra safety: ignore clicks while disabled
 			if ( btn.dom.classList.contains( 'disabled' ) ) return;
+
 			signals.transformModeChanged.dispatch( mode );
+
 		} );
 
 		row.add( btn );
@@ -47,6 +51,14 @@ function SidebarTools( editor ) {
 
 	const buttons = [ btnMove, btnRotate, btnResize ];
 
+	function clearSelectedState() {
+
+		btnMove.dom.classList.remove( 'selected' );
+		btnRotate.dom.classList.remove( 'selected' );
+		btnResize.dom.classList.remove( 'selected' );
+
+	}
+
 	// ----------------------------------
 	// Enable / Disable helpers
 	// ----------------------------------
@@ -61,6 +73,12 @@ function SidebarTools( editor ) {
 
 		} );
 
+		if ( enabled === false ) {
+
+			clearSelectedState();
+
+		}
+
 		hint.setValue(
 			enabled
 				? 'Choose a tool to move, rotate, or resize.'
@@ -72,31 +90,29 @@ function SidebarTools( editor ) {
 	// Start disabled
 	setEnabled( false );
 
-	// Enable when an object is selected
+	// ✅ Single source of truth: selection changes are emitted via objectSelected
 	signals.objectSelected.add( function ( object ) {
 
 		if ( object ) {
+
 			setEnabled( true );
+
+			// default to Move when something is selected
 			signals.transformModeChanged.dispatch( 'translate' );
-		}
 
-	} );
+		} else {
 
-	// Disable when selection is cleared
-	signals.objectFocused.add( function ( object ) {
-
-		if ( object === null || object === undefined ) {
+			// deselected / cleared
 			setEnabled( false );
+
 		}
 
 	} );
 
-	// Keep UI in sync with transform mode
+	// Keep UI in sync with transform mode (only matters when enabled)
 	signals.transformModeChanged.add( function ( mode ) {
 
-		btnMove.dom.classList.remove( 'selected' );
-		btnRotate.dom.classList.remove( 'selected' );
-		btnResize.dom.classList.remove( 'selected' );
+		clearSelectedState();
 
 		if ( mode === 'translate' ) btnMove.dom.classList.add( 'selected' );
 		if ( mode === 'rotate' ) btnRotate.dom.classList.add( 'selected' );
