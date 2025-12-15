@@ -78,6 +78,100 @@ function SidebarAddShapes( editor ) {
 	container.dom.appendChild( styleTag );
 
 	// =====================================================
+	// Defaults
+	// =====================================================
+
+	const DEFAULT_COLOR = '#000000';
+	const DEFAULT_PRESET = 'matte';
+
+	function ensureUserData( object ) {
+
+		object.userData = object.userData || {};
+
+		// if older builds stored a number/Color/etc, normalize to string
+		if ( typeof object.userData.veslColor !== 'string' ) object.userData.veslColor = DEFAULT_COLOR;
+		if ( typeof object.userData.veslPreset !== 'string' ) object.userData.veslPreset = DEFAULT_PRESET;
+
+	}
+
+	function getSelectedMaterial() {
+
+		const object = editor.selected;
+		if ( !object ) return null;
+
+		let material = object.material;
+		if ( Array.isArray( material ) ) material = material[ 0 ];
+		if ( !material || !material.isMaterial ) return null;
+
+		return { object, material };
+
+	}
+
+	// =====================================================
+	// Material application (single source of truth = userData)
+	// =====================================================
+
+	function applyStateToMaterial( object, material ) {
+
+		ensureUserData( object );
+
+		const hex = object.userData.veslColor;
+		const preset = object.userData.veslPreset;
+
+		// baseline reset (kills stacking / weird carry-over)
+		material.color.set( hex );
+
+		// if something set a map/emissive/etc, strip it (common cause of “why is it black?”)
+		if ( material.map ) material.map = null;
+		if ( material.emissive ) material.emissive.set( 0x000000 );
+
+		material.transparent = false;
+		material.opacity = 1.0;
+		material.depthWrite = true;
+
+		material.metalness = 0.0;
+		material.roughness = 0.8;
+		material.envMapIntensity = 0;
+
+		// presets
+		if ( preset === 'matte' ) {
+
+			material.metalness = 0.0;
+			material.roughness = 1.0;
+			material.envMapIntensity = 0;
+
+		} else if ( preset === 'plastic' ) {
+
+			material.metalness = 0.0;
+			material.roughness = 0.22;
+			material.envMapIntensity = 0.6;
+
+		} else if ( preset === 'metal' ) {
+
+			material.metalness = 1.0;
+			material.roughness = 0.08;
+			material.envMapIntensity = 1.0;
+
+		} else if ( preset === 'glass' ) {
+
+			material.metalness = 0.0;
+			material.roughness = 0.05;
+			material.transparent = true;
+			material.opacity = 0.18;
+			material.depthWrite = false;
+			material.envMapIntensity = 0.8;
+
+		}
+
+		material.needsUpdate = true;
+
+		// tell editor “this changed”
+		if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
+		signals.objectChanged.dispatch( object );
+
+	}
+
+	// =====================================================
 	// 1. ADD SHAPE
 	// =====================================================
 
@@ -90,30 +184,13 @@ function SidebarAddShapes( editor ) {
 	addSection.setClass( 'buttons' );
 	container.add( addSection );
 
-	const DEFAULT_COLOR = '#000000';
-	const DEFAULT_PRESET = 'matte';
-
-	function ensureUserData( object ) {
-
-		object.userData = object.userData || {};
-		if ( typeof object.userData.veslColor !== 'string' ) object.userData.veslColor = DEFAULT_COLOR;
-		if ( typeof object.userData.veslPreset !== 'string' ) object.userData.veslPreset = DEFAULT_PRESET;
-
-	}
-
 	function makeDefaultMaterial() {
 
-		// Always standard material; presets are just property tweaks.
-		const mat = new MeshStandardMaterial( {
+		return new MeshStandardMaterial( {
 			color: 0x000000,
 			metalness: 0.0,
-			roughness: 1.0,
-			transparent: false,
-			opacity: 1.0
+			roughness: 1.0
 		} );
-
-		mat.envMapIntensity = 0;
-		return mat;
 
 	}
 
@@ -127,11 +204,15 @@ function SidebarAddShapes( editor ) {
 
 			const geometry = createGeometry();
 			const material = makeDefaultMaterial();
+
 			const mesh = new Mesh( geometry, material );
 			mesh.position.set( 0, 0.5, 0 );
 
 			ensureUserData( mesh );
-			applyStateToMaterial( mesh, material, mesh.userData.veslColor, mesh.userData.veslPreset );
+			mesh.userData.veslColor = DEFAULT_COLOR;
+			mesh.userData.veslPreset = DEFAULT_PRESET;
+
+			applyStateToMaterial( mesh, material );
 
 			editor.execute( new AddObjectCommand( editor, mesh ) );
 			editor.select( mesh );
@@ -167,62 +248,6 @@ function SidebarAddShapes( editor ) {
 	const styleHint = new UIText( 'Select an object to edit its look.' );
 	styleHint.setClass( 'section-label' );
 	container.add( styleHint );
-
-	function getSelectedMaterial() {
-
-		const object = editor.selected;
-		if ( !object ) return null;
-
-		let material = object.material;
-		if ( Array.isArray( material ) ) material = material[ 0 ];
-		if ( !material || !material.isMaterial ) return null;
-
-		return { object, material };
-
-	}
-
-	function applyStateToMaterial( object, material, hex, preset ) {
-
-		// Always start from a known baseline to avoid stacking drift.
-		material.color.set( hex );
-		material.transparent     = false;
-		material.opacity         = 1.0;
-		material.depthWrite      = true;
-		material.metalness       = 0.0;
-		material.roughness       = 0.5;
-		material.envMapIntensity = 0;
-
-		if ( preset === 'matte' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 1.0;
-
-		} else if ( preset === 'plastic' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 0.22;
-			material.envMapIntensity = 0.5;
-
-		} else if ( preset === 'metal' ) {
-
-			material.metalness = 1.0;
-			material.roughness = 0.06;
-			material.envMapIntensity = 1.0;
-
-		} else if ( preset === 'glass' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 0.05;
-			material.transparent = true;
-			material.opacity = 0.18;
-			material.depthWrite = false;
-			material.envMapIntensity = 0.8;
-
-		}
-
-		material.needsUpdate = true;
-
-	}
 
 	// ---------- UI selection state ----------
 	const swatchButtons = [];                 // { hex, row }
@@ -260,10 +285,10 @@ function SidebarAddShapes( editor ) {
 
 	}
 
-	// prevent programmatic colorInput setValue from calling onChange
+	// prevent programmatic setValue from firing onChange
 	let suppressColorChange = false;
 
-	// ---------- color swatches ----------
+	// ---------- color UI ----------
 	const colorsLabel = new UIText( 'Color' );
 	colorsLabel.setClass( 'section-label' );
 	container.add( colorsLabel );
@@ -291,13 +316,8 @@ function SidebarAddShapes( editor ) {
 		const { object, material } = result;
 		ensureUserData( object );
 
-		const hex = colorInput.getValue();
-		object.userData.veslColor = hex;
-
-		applyStateToMaterial( object, material, object.userData.veslColor, object.userData.veslPreset );
-
-		signals.objectChanged.dispatch( object );
-		if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
+		object.userData.veslColor = colorInput.getValue();
+		applyStateToMaterial( object, material );
 
 	} );
 	pickerRow.add( colorInput );
@@ -327,16 +347,13 @@ function SidebarAddShapes( editor ) {
 
 			object.userData.veslColor = hex;
 
-			applyStateToMaterial( object, material, object.userData.veslColor, object.userData.veslPreset );
-
 			setSelectedSwatchRow( swatch );
 
 			suppressColorChange = true;
 			colorInput.setValue( hex );
 			suppressColorChange = false;
 
-			signals.objectChanged.dispatch( object );
-			if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
+			applyStateToMaterial( object, material );
 
 		} );
 
@@ -369,13 +386,9 @@ function SidebarAddShapes( editor ) {
 			ensureUserData( object );
 
 			object.userData.veslPreset = key;
-
-			applyStateToMaterial( object, material, object.userData.veslColor, object.userData.veslPreset );
-
 			setSelectedMaterialKey( key );
 
-			signals.objectChanged.dispatch( object );
-			if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
+			applyStateToMaterial( object, material );
 
 		} );
 
@@ -389,7 +402,10 @@ function SidebarAddShapes( editor ) {
 	matButton( 'Metal', 'metal' );
 	matButton( 'Glass', 'glass' );
 
-	// ---------- Sync (NO WRITES unless missing userData) ----------
+	// =====================================================
+	// Sync: ALWAYS re-apply from userData (beats overwrites)
+	// =====================================================
+
 	let syncing = false;
 
 	function syncUIFromSelection() {
@@ -399,21 +415,20 @@ function SidebarAddShapes( editor ) {
 
 		const result = getSelectedMaterial();
 		if ( !result ) {
+
 			setSelectedSwatchRow( null );
 			setSelectedMaterialKey( null );
 			syncing = false;
 			return;
+
 		}
 
 		const { object, material } = result;
 
-		// if userData missing (older objects), initialize and APPLY ONCE
-		const had = object.userData && ( object.userData.veslColor || object.userData.veslPreset );
 		ensureUserData( object );
 
-		if ( !had ) {
-			applyStateToMaterial( object, material, object.userData.veslColor, object.userData.veslPreset );
-		}
+		// IMPORTANT: snap the material back to state every time selection changes
+		applyStateToMaterial( object, material );
 
 		setSelectedMaterialKey( object.userData.veslPreset );
 		syncSwatchToHex( object.userData.veslColor );
@@ -427,6 +442,7 @@ function SidebarAddShapes( editor ) {
 	}
 
 	if ( signals.objectSelected ) signals.objectSelected.add( syncUIFromSelection );
+	if ( signals.objectChanged ) signals.objectChanged.add( syncUIFromSelection );
 
 	// init
 	syncUIFromSelection();
