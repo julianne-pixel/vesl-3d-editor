@@ -2,7 +2,8 @@
 
 import {
 	Mesh,
-	MeshStandardMaterial,
+	MeshBasicMaterial,
+	DoubleSide,
 	BoxGeometry,
 	CircleGeometry,
 	CylinderGeometry,
@@ -24,7 +25,7 @@ function SidebarAddShapes( editor ) {
 	container.setId( 'sidebar-addshapes' );
 	container.setClass( 'Panel' );
 
-	// --- VESL selection styles (swatches + material buttons) ---
+	// --- VESL selection styles (swatches only) ---
 	const styleTag = document.createElement( 'style' );
 	styleTag.textContent = `
 		#sidebar-addshapes{ --vesl-accent:#00fd64; }
@@ -50,30 +51,6 @@ function SidebarAddShapes( editor ) {
 			color:#000;
 			box-shadow:0 6px 18px rgba(0,0,0,0.35);
 		}
-
-		#sidebar-addshapes .material-row .button{
-			position:relative;
-			border-radius:10px;
-			outline:2px solid transparent;
-		}
-		#sidebar-addshapes .material-row .button.is-selected{
-			outline-color:var(--vesl-accent);
-			box-shadow: 0 0 0 2px rgba(0,253,100,0.25), 0 0 22px rgba(0,253,100,0.15);
-		}
-		#sidebar-addshapes .material-row .button.is-selected::after{
-			content:"Active";
-			position:absolute;
-			right:10px;
-			top:50%;
-			transform:translateY(-50%);
-			font-size:11px;
-			font-weight:800;
-			padding:2px 8px;
-			border-radius:999px;
-			background:rgba(0,253,100,0.16);
-			color:var(--vesl-accent);
-			border:1px solid rgba(0,253,100,0.30);
-		}
 	`;
 	container.dom.appendChild( styleTag );
 
@@ -82,33 +59,32 @@ function SidebarAddShapes( editor ) {
 	// =====================================================
 
 	const DEFAULT_COLOR = '#000000';
-	const DEFAULT_PRESET = 'matte';
 
 	function ensureUserData( object ) {
 
 		object.userData = object.userData || {};
 
-		// if older builds stored a number/Color/etc, normalize to string
+		// normalize to string (older builds might have stored other types)
 		if ( typeof object.userData.veslColor !== 'string' ) object.userData.veslColor = DEFAULT_COLOR;
-		if ( typeof object.userData.veslPreset !== 'string' ) object.userData.veslPreset = DEFAULT_PRESET;
 
 	}
 
 	function getSelectedMaterial() {
 
 		const object = editor.selected;
-		if ( !object ) return null;
+		if ( ! object ) return null;
 
 		let material = object.material;
 		if ( Array.isArray( material ) ) material = material[ 0 ];
-		if ( !material || !material.isMaterial ) return null;
+		if ( ! material || ! material.isMaterial ) return null;
 
 		return { object, material };
 
 	}
 
 	// =====================================================
-	// Material application (single source of truth = userData)
+	// Material application (ONLY color; no presets)
+	// Uses MeshBasicMaterial so color always shows.
 	// =====================================================
 
 	function applyStateToMaterial( object, material ) {
@@ -116,56 +92,24 @@ function SidebarAddShapes( editor ) {
 		ensureUserData( object );
 
 		const hex = object.userData.veslColor;
-		const preset = object.userData.veslPreset;
 
-		// baseline reset (kills stacking / weird carry-over)
-		material.color.set( hex );
+		// set the visible color
+		if ( material.color ) material.color.set( hex );
 
-		// if something set a map/emissive/etc, strip it (common cause of “why is it black?”)
+		// strip anything that could override appearance
 		if ( material.map ) material.map = null;
 		if ( material.emissive ) material.emissive.set( 0x000000 );
 
 		material.transparent = false;
 		material.opacity = 1.0;
 		material.depthWrite = true;
+		material.depthTest = true;
 
-		material.metalness = 0.0;
-		material.roughness = 0.8;
-		material.envMapIntensity = 0;
-
-		// presets
-		if ( preset === 'matte' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 1.0;
-			material.envMapIntensity = 0;
-
-		} else if ( preset === 'plastic' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 0.22;
-			material.envMapIntensity = 0.6;
-
-		} else if ( preset === 'metal' ) {
-
-			material.metalness = 1.0;
-			material.roughness = 0.08;
-			material.envMapIntensity = 1.0;
-
-		} else if ( preset === 'glass' ) {
-
-			material.metalness = 0.0;
-			material.roughness = 0.05;
-			material.transparent = true;
-			material.opacity = 0.18;
-			material.depthWrite = false;
-			material.envMapIntensity = 0.8;
-
-		}
+		// helps 2D stuff like Plane/Circle/Ring show from either side
+		material.side = DoubleSide;
 
 		material.needsUpdate = true;
 
-		// tell editor “this changed”
 		if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
 		signals.objectChanged.dispatch( object );
 
@@ -186,10 +130,9 @@ function SidebarAddShapes( editor ) {
 
 	function makeDefaultMaterial() {
 
-		return new MeshStandardMaterial( {
+		return new MeshBasicMaterial( {
 			color: 0x000000,
-			metalness: 0.0,
-			roughness: 1.0
+			side: DoubleSide
 		} );
 
 	}
@@ -210,7 +153,6 @@ function SidebarAddShapes( editor ) {
 
 			ensureUserData( mesh );
 			mesh.userData.veslColor = DEFAULT_COLOR;
-			mesh.userData.veslPreset = DEFAULT_PRESET;
 
 			applyStateToMaterial( mesh, material );
 
@@ -233,7 +175,7 @@ function SidebarAddShapes( editor ) {
 	addShapeButton( 'Tube', () => new TorusGeometry( 1, 0.35, 16, 48 ) );
 
 	// =====================================================
-	// 2. STYLE
+	// 2. STYLE (Color only)
 	// =====================================================
 
 	const separator = new UIRow();
@@ -245,35 +187,19 @@ function SidebarAddShapes( editor ) {
 	styleTitle.setTextContent( 'Style' );
 	container.add( styleTitle );
 
-	const styleHint = new UIText( 'Select an object to edit its look.' );
+	const styleHint = new UIText( 'Select an object to edit its color.' );
 	styleHint.setClass( 'section-label' );
 	container.add( styleHint );
 
 	// ---------- UI selection state ----------
-	const swatchButtons = [];                 // { hex, row }
-	const materialButtons = new Map();        // key -> row
+	const swatchButtons = []; // { hex, row }
 	let selectedSwatchRow = null;
-	let selectedMaterialKey = null;
 
 	function setSelectedSwatchRow( row ) {
 
 		if ( selectedSwatchRow ) selectedSwatchRow.dom.classList.remove( 'is-selected' );
 		selectedSwatchRow = row;
 		if ( selectedSwatchRow ) selectedSwatchRow.dom.classList.add( 'is-selected' );
-
-	}
-
-	function setSelectedMaterialKey( key ) {
-
-		if ( selectedMaterialKey && materialButtons.has( selectedMaterialKey ) ) {
-			materialButtons.get( selectedMaterialKey ).dom.classList.remove( 'is-selected' );
-		}
-
-		selectedMaterialKey = key;
-
-		if ( key && materialButtons.has( key ) ) {
-			materialButtons.get( key ).dom.classList.add( 'is-selected' );
-		}
 
 	}
 
@@ -311,12 +237,13 @@ function SidebarAddShapes( editor ) {
 		if ( suppressColorChange ) return;
 
 		const result = getSelectedMaterial();
-		if ( !result ) return;
+		if ( ! result ) return;
 
 		const { object, material } = result;
-		ensureUserData( object );
 
+		ensureUserData( object );
 		object.userData.veslColor = colorInput.getValue();
+
 		applyStateToMaterial( object, material );
 
 	} );
@@ -340,11 +267,11 @@ function SidebarAddShapes( editor ) {
 		swatch.onClick( function () {
 
 			const result = getSelectedMaterial();
-			if ( !result ) return;
+			if ( ! result ) return;
 
 			const { object, material } = result;
-			ensureUserData( object );
 
+			ensureUserData( object );
 			object.userData.veslColor = hex;
 
 			setSelectedSwatchRow( swatch );
@@ -362,48 +289,8 @@ function SidebarAddShapes( editor ) {
 
 	} );
 
-	// ---------- material presets ----------
-	const matLabel = new UIText( 'Material' );
-	matLabel.setClass( 'section-label' );
-	container.add( matLabel );
-
-	const matRow = new UIPanel();
-	matRow.setClass( 'material-row' );
-	container.add( matRow );
-
-	function matButton( label, key ) {
-
-		const row = new UIRow();
-		row.setClass( 'button' );
-		row.setTextContent( label );
-
-		row.onClick( function () {
-
-			const result = getSelectedMaterial();
-			if ( !result ) return;
-
-			const { object, material } = result;
-			ensureUserData( object );
-
-			object.userData.veslPreset = key;
-			setSelectedMaterialKey( key );
-
-			applyStateToMaterial( object, material );
-
-		} );
-
-		matRow.add( row );
-		materialButtons.set( key, row );
-
-	}
-
-	matButton( 'Matte', 'matte' );
-	matButton( 'Plastic', 'plastic' );
-	matButton( 'Metal', 'metal' );
-	matButton( 'Glass', 'glass' );
-
 	// =====================================================
-	// Sync: ALWAYS re-apply from userData (beats overwrites)
+	// Sync on selection/change
 	// =====================================================
 
 	let syncing = false;
@@ -414,10 +301,11 @@ function SidebarAddShapes( editor ) {
 		syncing = true;
 
 		const result = getSelectedMaterial();
-		if ( !result ) {
+
+		if ( ! result ) {
 
 			setSelectedSwatchRow( null );
-			setSelectedMaterialKey( null );
+
 			syncing = false;
 			return;
 
@@ -427,10 +315,9 @@ function SidebarAddShapes( editor ) {
 
 		ensureUserData( object );
 
-		// IMPORTANT: snap the material back to state every time selection changes
+		// Re-apply from userData every time (keeps it consistent)
 		applyStateToMaterial( object, material );
 
-		setSelectedMaterialKey( object.userData.veslPreset );
 		syncSwatchToHex( object.userData.veslColor );
 
 		suppressColorChange = true;
