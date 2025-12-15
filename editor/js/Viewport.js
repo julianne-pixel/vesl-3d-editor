@@ -359,7 +359,7 @@ const viewHelper = ENABLE_VIEW_HELPER ? new ViewHelper( camera, container ) : nu
 
 	} );
 
-	viewHelper.center = controls.center;
+if ( viewHelper ) viewHelper.center = controls.center;
 	editor.controls = controls;
 
 	// signals ------------------------------------------------
