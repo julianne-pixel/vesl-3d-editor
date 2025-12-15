@@ -1,4 +1,5 @@
 import { SidebarAddShapes } from './Sidebar.AddShapes.js';
+import { SidebarTools } from './Sidebar.Tools.js';
 
 import { UITabbedPanel, UISpan } from './libs/ui.js';
 
