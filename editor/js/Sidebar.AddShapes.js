@@ -2,7 +2,7 @@
 
 import {
 	Mesh,
-	MeshBasicMaterial,
+	MeshStandardMaterial,
 	DoubleSide,
 	BoxGeometry,
 	CircleGeometry,
@@ -11,7 +11,8 @@ import {
 	PlaneGeometry,
 	RingGeometry,
 	SphereGeometry,
-	TorusGeometry
+	TorusGeometry,
+	Color
 } from 'three';
 
 import { UIPanel, UIRow, UIText, UIColor } from './libs/ui.js';
@@ -20,6 +21,7 @@ import { AddObjectCommand } from './commands/AddObjectCommand.js';
 function SidebarAddShapes( editor ) {
 
 	const signals = editor.signals;
+	const scene = editor.scene;
 
 	const container = new UIPanel();
 	container.setId( 'sidebar-addshapes' );
@@ -60,117 +62,159 @@ function SidebarAddShapes( editor ) {
 
 	const DEFAULT_COLOR = '#000000';
 
-	function getMaterialsArray( object ) {
-
-		if ( ! object || ! object.material ) return [];
-
-		if ( Array.isArray( object.material ) ) {
-			return object.material.filter( m => m && m.isMaterial );
-		}
-
-		return ( object.material && object.material.isMaterial ) ? [ object.material ] : [];
-
-	}
-
-	function getFirstMaterial( object ) {
-
-		const mats = getMaterialsArray( object );
-		return mats.length > 0 ? mats[ 0 ] : null;
-
-	}
-
-	// If GLB meshes share materials, editing one mesh changes others.
-	// Clone materials per-object to make edits local to that mesh.
-	function ensureUniqueMaterials( object ) {
-
-		if ( ! object || ! object.material ) return;
-
-		if ( Array.isArray( object.material ) ) {
-
-			object.material = object.material.map( ( m ) => ( m && m.isMaterial ) ? m.clone() : m );
-			return;
-
-		}
-
-		if ( object.material && object.material.isMaterial ) {
-
-			object.material = object.material.clone();
-
-		}
-
-	}
-
 	function ensureUserData( object ) {
 
 		object.userData = object.userData || {};
 
-		// If we've already stored a VESL color, keep it
-		if ( typeof object.userData.veslColor === 'string' ) return;
+		// normalize to string (older builds might have stored other types)
+		if ( typeof object.userData.veslColor !== 'string' ) object.userData.veslColor = DEFAULT_COLOR;
 
-		// Otherwise, initialize from imported material color (GLB)
-		const m = getFirstMaterial( object );
+	}
 
-		if ( m && m.color ) {
+	function colorToHexString( color ) {
 
-			object.userData.veslColor = '#' + m.color.getHexString();
+		if ( !color || color.isColor !== true ) return DEFAULT_COLOR;
+		return `#${color.getHexString()}`;
 
-		} else {
+	}
 
-			object.userData.veslColor = DEFAULT_COLOR;
+	// =====================================================
+	// GLB FIX: prevent shared material edits
+	// If multiple meshes share the same material instance,
+	// clone it on selection so edits affect ONLY the selected mesh.
+	// =====================================================
+
+	function countMaterialUsers( material ) {
+
+		let count = 0;
+
+		scene.traverse( ( obj ) => {
+
+			if ( obj.isMesh !== true ) return;
+
+			const mat = obj.material;
+
+			if ( Array.isArray( mat ) ) {
+
+				for ( const m of mat ) if ( m === material ) count++;
+
+			} else {
+
+				if ( mat === material ) count++;
+
+			}
+
+		} );
+
+		return count;
+
+	}
+
+	function ensureUniqueMaterialsForObject( object ) {
+
+		if ( !object || object.isMesh !== true ) return;
+
+		const mat = object.material;
+		if ( !mat ) return;
+
+		// Multi-material
+		if ( Array.isArray( mat ) ) {
+
+			let changed = false;
+			const next = mat.slice();
+
+			for ( let i = 0; i < next.length; i++ ) {
+
+				const m = next[ i ];
+				if ( !m || !m.isMaterial ) continue;
+
+				// If shared elsewhere, clone it
+				if ( countMaterialUsers( m ) > 1 ) {
+
+					const cloned = m.clone();
+					cloned.userData = { ...( m.userData || {} ), __veslCloned: true };
+					next[ i ] = cloned;
+					changed = true;
+
+				}
+
+			}
+
+			if ( changed ) {
+
+				object.material = next;
+				object.material.needsUpdate = true;
+
+			}
+
+			return;
+
+		}
+
+		// Single material
+		if ( mat.isMaterial && countMaterialUsers( mat ) > 1 ) {
+
+			const cloned = mat.clone();
+			cloned.userData = { ...( mat.userData || {} ), __veslCloned: true };
+			object.material = cloned;
+			object.material.needsUpdate = true;
 
 		}
 
 	}
 
-	function getSelected() {
+	function getSelectedTarget() {
 
 		const object = editor.selected;
-		if ( ! object ) return null;
+		if ( !object || object.isMesh !== true ) return null;
 
-		const materials = getMaterialsArray( object );
-		if ( materials.length === 0 ) return null;
+		// Important: for GLB meshes, ensure material isn’t shared before editing
+		ensureUniqueMaterialsForObject( object );
 
-		return { object, materials };
+		const mat = object.material;
 
-	}
+		if ( Array.isArray( mat ) ) {
 
-	function applyHexToMaterial( material, hex ) {
+			const materials = mat.filter( m => m && m.isMaterial );
+			if ( materials.length === 0 ) return null;
+			return { object, materials };
 
-		if ( ! material || ! material.isMaterial ) return;
+		}
 
-		if ( material.color ) material.color.set( hex );
+		if ( mat && mat.isMaterial ) return { object, materials: [ mat ] };
 
-		// strip anything that might hijack appearance
-		if ( material.map ) material.map = null;
-		if ( material.emissive ) material.emissive.set( 0x000000 );
-
-		// keep consistent visibility for flat shapes
-		if ( 'side' in material ) material.side = DoubleSide;
-
-		// If you're using SOLID overrides elsewhere, this still keeps underlying material sane
-		if ( 'transparent' in material ) material.transparent = false;
-		if ( 'opacity' in material ) material.opacity = 1.0;
-		if ( 'depthWrite' in material ) material.depthWrite = true;
-		if ( 'depthTest' in material ) material.depthTest = true;
-
-		material.needsUpdate = true;
+		return null;
 
 	}
 
-	function applyStateToSelection( object ) {
+	// =====================================================
+	// Apply color to selected object materials
+	// - Keeps GLB material type (Standard/Physical/etc)
+	// - Only sets .color (does NOT nuke textures by default)
+	// =====================================================
+
+	function applyColorToObject( object, materials, hex ) {
 
 		ensureUserData( object );
+		object.userData.veslColor = hex;
 
-		// CRITICAL: detach this mesh from any shared imported materials
-		ensureUniqueMaterials( object );
+		const c = new Color( hex );
 
-		const mats = getMaterialsArray( object );
-		const hex = object.userData.veslColor;
+		for ( const m of materials ) {
 
-		for ( const m of mats ) applyHexToMaterial( m, hex );
+			if ( m.color ) m.color.copy( c );
 
-		// Notify editor
-		if ( signals.materialChanged ) signals.materialChanged.dispatch( mats[ 0 ] );
+			// Don’t force transparency / maps off for GLB
+			// (If you *want* to force flat color, you can uncomment next 2 lines)
+			// if ( m.map ) m.map = null;
+			// if ( m.emissive ) m.emissive.set( 0x000000 );
+
+			m.needsUpdate = true;
+
+		}
+
+		// tell editor “this changed”
+		if ( signals.materialChanged ) signals.materialChanged.dispatch( materials[ 0 ] );
 		signals.objectChanged.dispatch( object );
 
 	}
@@ -190,8 +234,12 @@ function SidebarAddShapes( editor ) {
 
 	function makeDefaultMaterial() {
 
-		return new MeshBasicMaterial( {
+		// For created shapes, Standard is nicer in realistic;
+		// SOLID mode will still show color because your Viewport SOLID override.
+		return new MeshStandardMaterial( {
 			color: 0x000000,
+			metalness: 0.0,
+			roughness: 0.95,
 			side: DoubleSide
 		} );
 
@@ -214,7 +262,7 @@ function SidebarAddShapes( editor ) {
 			ensureUserData( mesh );
 			mesh.userData.veslColor = DEFAULT_COLOR;
 
-			applyStateToSelection( mesh );
+			applyColorToObject( mesh, [ material ], mesh.userData.veslColor );
 
 			editor.execute( new AddObjectCommand( editor, mesh ) );
 			editor.select( mesh );
@@ -296,15 +344,16 @@ function SidebarAddShapes( editor ) {
 
 		if ( suppressColorChange ) return;
 
-		const sel = getSelected();
-		if ( ! sel ) return;
+		const target = getSelectedTarget();
+		if ( !target ) return;
 
-		const { object } = sel;
+		const { object, materials } = target;
 
 		ensureUserData( object );
-		object.userData.veslColor = colorInput.getValue();
+		const hex = colorInput.getValue();
 
-		applyStateToSelection( object );
+		applyColorToObject( object, materials, hex );
+		syncSwatchToHex( hex );
 
 	} );
 	pickerRow.add( colorInput );
@@ -326,13 +375,12 @@ function SidebarAddShapes( editor ) {
 
 		swatch.onClick( function () {
 
-			const sel = getSelected();
-			if ( ! sel ) return;
+			const target = getSelectedTarget();
+			if ( !target ) return;
 
-			const { object } = sel;
+			const { object, materials } = target;
 
 			ensureUserData( object );
-			object.userData.veslColor = hex;
 
 			setSelectedSwatchRow( swatch );
 
@@ -340,7 +388,7 @@ function SidebarAddShapes( editor ) {
 			colorInput.setValue( hex );
 			suppressColorChange = false;
 
-			applyStateToSelection( object );
+			applyColorToObject( object, materials, hex );
 
 		} );
 
@@ -351,6 +399,8 @@ function SidebarAddShapes( editor ) {
 
 	// =====================================================
 	// Sync on selection/change
+	// - For GLB: pulls current material color into UI
+	// - Also clones shared materials on selection so edits are isolated
 	// =====================================================
 
 	let syncing = false;
@@ -360,27 +410,45 @@ function SidebarAddShapes( editor ) {
 		if ( syncing ) return;
 		syncing = true;
 
-		const sel = getSelected();
+		const target = getSelectedTarget();
 
-		if ( ! sel ) {
+		if ( !target ) {
 
 			setSelectedSwatchRow( null );
+			suppressColorChange = true;
+			colorInput.setValue( DEFAULT_COLOR );
+			suppressColorChange = false;
+
 			syncing = false;
 			return;
 
 		}
 
-		const { object } = sel;
+		const { object, materials } = target;
 
-		// IMPORTANT:
-		// - initialize userData from imported material color (first time)
-		// - clone materials so edits don't affect sibling meshes
 		ensureUserData( object );
-		ensureUniqueMaterials( object );
 
-		// Keep material consistent with stored color
-		applyStateToSelection( object );
+		// If this object doesn’t have veslColor set yet, initialize from imported GLB color
+		// Prefer the first material with a color
+		let importedHex = null;
+		for ( const m of materials ) {
 
+			if ( m && m.color && m.color.isColor ) {
+
+				importedHex = colorToHexString( m.color );
+				break;
+
+			}
+
+		}
+
+		if ( importedHex && ( object.userData.veslColor === DEFAULT_COLOR || !object.userData.veslColor ) ) {
+
+			object.userData.veslColor = importedHex;
+
+		}
+
+		// Update UI to match object state
 		syncSwatchToHex( object.userData.veslColor );
 
 		suppressColorChange = true;
