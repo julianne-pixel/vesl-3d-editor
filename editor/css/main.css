@@ -942,20 +942,20 @@ select {
   pointer-events: none;
 }
 
-/* =====================================================
-   VESL MODE – Hide unused editor tabs
-   ===================================================== */
+/* =========================================================
+   VESL MODE — Hide unused editor tabs
+   ========================================================= */
 
-/* Hide tab buttons */
-#menubar .menu:nth-child(2), /* Scene */
-#menubar .menu:nth-child(3), /* Project */
-#menubar .menu:nth-child(4)  /* Settings */
+.Menubar .menu:nth-child(2), /* Scene */
+.Menubar .menu:nth-child(3), /* Project */
+.Menubar .menu:nth-child(4)  /* Settings */
 {
   display: none !important;
 }
 
 /* Optional: tighten spacing so Shapes feels intentional */
-#menubar .menu:first-child {
+.Menubar .menu:first-child {
   margin-right: 0;
 }
+
 
