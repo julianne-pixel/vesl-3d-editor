@@ -47,6 +47,79 @@ function Viewport( editor ) {
 	const scene = editor.scene;
 	const sceneHelpers = editor.sceneHelpers;
 
+	// =====================================================================
+	// SOLID MODE FIX:
+	// Use a shared override material so SOLID always displays per-object color
+	// even when materials get swapped (matte/plastic/metal/glass) or lights/env
+	// are missing. We copy the object's material color/opacity per draw.
+	// =====================================================================
+
+	const SOLID_OVERRIDE = new THREE.MeshBasicMaterial( { color: 0xffffff } );
+	SOLID_OVERRIDE.depthTest = true;
+	SOLID_OVERRIDE.depthWrite = true;
+	SOLID_OVERRIDE.transparent = false;
+	SOLID_OVERRIDE.opacity = 1.0;
+
+	function ensureSolidHooksEnabled() {
+
+		scene.traverse( function ( obj ) {
+
+			if ( obj.isMesh !== true ) return;
+			if ( obj.userData.__solidHooked === true ) return;
+
+			obj.userData.__solidHooked = true;
+			obj.userData.__solidPrevOnBeforeRender = obj.onBeforeRender;
+
+			obj.onBeforeRender = function ( renderer, sceneArg, cameraArg, geometry, materialArg, group ) {
+
+				// Only apply when SOLID override is active
+				if ( scene.overrideMaterial === SOLID_OVERRIDE ) {
+
+					const m = obj.material;
+					const c = ( m && m.color ) ? m.color : null;
+
+					if ( c ) {
+						SOLID_OVERRIDE.color.copy( c );
+					} else {
+						SOLID_OVERRIDE.color.setHex( 0xffffff );
+					}
+
+					// Respect transparency-ish settings so "glass" doesn't get stuck black
+					const opacity = ( m && typeof m.opacity === 'number' ) ? m.opacity : 1.0;
+					const transparent = ( m && m.transparent === true ) || opacity < 1.0;
+
+					SOLID_OVERRIDE.opacity = opacity;
+					SOLID_OVERRIDE.transparent = transparent;
+					SOLID_OVERRIDE.depthWrite = !transparent;
+
+				}
+
+				// Preserve any original onBeforeRender
+				if ( typeof obj.userData.__solidPrevOnBeforeRender === 'function' ) {
+					obj.userData.__solidPrevOnBeforeRender.call( obj, renderer, sceneArg, cameraArg, geometry, materialArg, group );
+				}
+
+			};
+
+		} );
+
+	}
+
+	function restoreSolidHooks() {
+
+		scene.traverse( function ( obj ) {
+
+			if ( obj.isMesh !== true ) return;
+			if ( obj.userData.__solidHooked !== true ) return;
+
+			obj.onBeforeRender = obj.userData.__solidPrevOnBeforeRender || function () {};
+			delete obj.userData.__solidPrevOnBeforeRender;
+			delete obj.userData.__solidHooked;
+
+		} );
+
+	}
+
 	// helpers ------------------------------------------------
 
 	const GRID_COLORS_LIGHT = [ 0x999999, 0x777777 ];
@@ -392,6 +465,12 @@ function Viewport( editor ) {
 
 		container.dom.appendChild( renderer.domElement );
 
+		// If the app boots already in SOLID, make sure hooks exist
+		if ( editor.viewportShading === 'solid' ) {
+			ensureSolidHooksEnabled();
+			scene.overrideMaterial = SOLID_OVERRIDE;
+		}
+
 		render();
 
 	} );
@@ -406,6 +485,10 @@ function Viewport( editor ) {
 	signals.sceneGraphChanged.add( function () {
 
 		initPT();
+
+		// new meshes can appear; ensure solid hooks stay applied when needed
+		if ( editor.viewportShading === 'solid' ) ensureSolidHooksEnabled();
+
 		render();
 
 	} );
@@ -482,6 +565,10 @@ function Viewport( editor ) {
 		}
 
 		initPT();
+
+		// if colors/materials change while in SOLID, hooks ensure it renders
+		if ( editor.viewportShading === 'solid' ) ensureSolidHooksEnabled();
+
 		render();
 
 	} );
@@ -501,6 +588,9 @@ function Viewport( editor ) {
 	signals.materialChanged.add( function () {
 
 		updatePTMaterials();
+
+		if ( editor.viewportShading === 'solid' ) ensureSolidHooksEnabled();
+
 		render();
 
 	} );
@@ -692,6 +782,12 @@ function Viewport( editor ) {
 
 		const viewportShading = editor.viewportShading;
 
+		// Always clear override first, then apply per mode
+		scene.overrideMaterial = null;
+
+		// Restore any SOLID hooks unless we are going into solid
+		if ( viewportShading !== 'solid' ) restoreSolidHooks();
+
 		switch ( viewportShading ) {
 
 			case 'realistic':
@@ -699,7 +795,8 @@ function Viewport( editor ) {
 				break;
 
 			case 'solid':
-				scene.overrideMaterial = null;
+				ensureSolidHooksEnabled();
+				scene.overrideMaterial = SOLID_OVERRIDE;
 				break;
 
 			case 'normals':
