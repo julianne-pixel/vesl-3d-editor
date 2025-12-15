@@ -16,8 +16,14 @@ function Sidebar( editor ) {
 	container.setId( 'sidebar' );
 
 	// --- ADD YOUR PANEL HERE ---
-	const addShapes = new SidebarAddShapes( editor );
-	container.addTab( 'shapes', 'Shapes', addShapes );
+
+	const shapesPanel = new UISpan();
+
+shapesPanel.add( new SidebarTools( editor ) );
+shapesPanel.add( new SidebarAddShapes( editor ) );
+
+container.addTab( 'shapes', 'Shapes', shapesPanel );
+
 
 	const sidebarProperties = new SidebarProperties( editor );
 
