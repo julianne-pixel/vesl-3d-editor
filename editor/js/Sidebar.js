@@ -1,45 +1,23 @@
 import { SidebarAddShapes } from './Sidebar.AddShapes.js';
-
-import { UITabbedPanel, UISpan } from './libs/ui.js';
-
-import { SidebarScene } from './Sidebar.Scene.js';
-import { SidebarProperties } from './Sidebar.Properties.js';
-import { SidebarProject } from './Sidebar.Project.js';
-import { SidebarSettings } from './Sidebar.Settings.js';
+import { UITabbedPanel } from './libs/ui.js';
 
 function Sidebar( editor ) {
-
-	const strings = editor.strings;
 
 	// THIS is the real sidebar container
 	const container = new UITabbedPanel();
 	container.setId( 'sidebar' );
 
-	// --- ADD YOUR PANEL HERE ---
+	// --- SHAPES ONLY ---
 	const addShapes = new SidebarAddShapes( editor );
 	container.addTab( 'shapes', 'Shapes', addShapes );
 
-	const sidebarProperties = new SidebarProperties( editor );
+	// Default to Shapes
+	container.select( 'shapes' );
 
-	const scene = new UISpan().add(
-		new SidebarScene( editor ),
-		sidebarProperties
-	);
-	const project = new SidebarProject( editor );
-	const settings = new SidebarSettings( editor );
-
-	container.addTab( 'scene', strings.getKey( 'sidebar/scene' ), scene );
-	container.addTab( 'project', strings.getKey( 'sidebar/project' ), project );
-	container.addTab( 'settings', strings.getKey( 'sidebar/settings' ), settings );
-	container.select( 'scene' );
-
-	const sidebarPropertiesResizeObserver = new ResizeObserver( function () {
-
-		sidebarProperties.tabsDiv.setWidth( getComputedStyle( container.dom ).width );
-
-	} );
-
-	sidebarPropertiesResizeObserver.observe( container.tabsDiv.dom );
+	// (Optional) If you still need the resize observer for your shapes UI,
+	// keep it; otherwise you can remove it.
+	// Note: In your current file, this observer was only used to size
+	// sidebarProperties.tabsDiv, which we're removing, so this is safe to omit.
 
 	return container;
 
