@@ -957,14 +957,19 @@ select {
   margin-right: 0;
 }
 
-/* Hide top-right camera + shading UI */
-#viewport .controls,
-#viewport .viewport-controls,
-#viewport #viewportControls,
-#viewport #viewport-controls{
+/* Hide top-right camera + shading UI (regardless of where it mounts) */
+.viewport-controls,
+.viewportControls,
+.ViewportControls,
+#viewport-controls,
+#viewportControls,
+#viewport-controls-container,
+#viewportControlsContainer {
   display: none !important;
   visibility: hidden !important;
+  pointer-events: none !important;
 }
+
 
 /* Hide bottom-left stats UI */
 #viewport .info,
@@ -976,4 +981,10 @@ select {
   visibility: hidden !important;
 }
 
+/* Common inner controls row wrappers */
+.viewport-controls * ,
+.viewportControls * ,
+.ViewportControls * {
+  pointer-events: none !important;
+}
 
