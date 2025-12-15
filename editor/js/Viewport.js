@@ -1,3 +1,5 @@
+// editor/js/Viewport.js
+
 import * as THREE from 'three';
 
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
@@ -19,13 +21,6 @@ import { SetScaleCommand } from './commands/SetScaleCommand.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ViewportPathtracer } from './Viewport.Pathtracer.js';
 
-/**
- * IMPORTANT:
- * Keep renderer at module scope so event handlers never reference an uninitialized binding.
- * Do NOT redeclare `renderer` inside Viewport() (that would shadow this and cause null errors).
- */
-let renderer = null;
-
 function Viewport( editor ) {
 
 	const selector = editor.selector;
@@ -38,8 +33,13 @@ function Viewport( editor ) {
 	container.add( new ViewportControls( editor ) );
 	container.add( new ViewportInfo( editor ) );
 
-	//
-
+	// ---------------------------------------------------
+	// IMPORTANT:
+	// Keep renderer INSIDE the function and ONLY ONCE.
+	// Many code paths fire (resize/mousedown/render) before
+	// rendererCreated, so we guard those paths.
+	// ---------------------------------------------------
+	let renderer = null;
 	let pmremGenerator = null;
 	let pathtracer = null;
 
@@ -47,7 +47,7 @@ function Viewport( editor ) {
 	const scene = editor.scene;
 	const sceneHelpers = editor.sceneHelpers;
 
-	// helpers
+	// helpers ------------------------------------------------
 
 	const GRID_COLORS_LIGHT = [ 0x999999, 0x777777 ];
 	const GRID_COLORS_DARK = [ 0x555555, 0x888888 ];
@@ -63,6 +63,8 @@ function Viewport( editor ) {
 	grid2.material.color.setHex( GRID_COLORS_LIGHT[ 1 ] );
 	grid2.material.vertexColors = false;
 	grid.add( grid2 );
+
+	sceneHelpers.add( grid );
 
 	const viewHelper = new ViewHelper( camera, container );
 
@@ -154,30 +156,29 @@ function Viewport( editor ) {
 
 	const xr = new XR( editor, transformControls ); // eslint-disable-line no-unused-vars
 
-	// events
+	// events -------------------------------------------------
 
 	function updateAspectRatio() {
 
 		for ( const uuid in editor.cameras ) {
 
-			const camera = editor.cameras[ uuid ];
-
+			const cam = editor.cameras[ uuid ];
 			const aspect = container.dom.offsetWidth / container.dom.offsetHeight;
 
-			if ( camera.isPerspectiveCamera ) {
+			if ( cam.isPerspectiveCamera ) {
 
-				camera.aspect = aspect;
+				cam.aspect = aspect;
 
 			} else {
 
-				camera.left = - aspect;
-				camera.right = aspect;
+				cam.left = - aspect;
+				cam.right = aspect;
 
 			}
 
-			camera.updateProjectionMatrix();
+			cam.updateProjectionMatrix();
 
-			const cameraHelper = editor.helpers[ camera.id ];
+			const cameraHelper = editor.helpers[ cam.id ];
 			if ( cameraHelper ) cameraHelper.update();
 
 		}
@@ -210,11 +211,8 @@ function Viewport( editor ) {
 
 	function onMouseDown( event ) {
 
-		// event.preventDefault();
-
-		// ✅ guard: renderer may not exist yet (or may have failed to init)
-		if ( !renderer || !renderer.domElement ) return;
-
+		// IMPORTANT: renderer can be null until rendererCreated fires
+		if ( renderer === null ) return;
 		if ( event.target !== renderer.domElement ) return;
 
 		const array = getMousePosition( container.dom, event.clientX, event.clientY );
@@ -238,7 +236,6 @@ function Viewport( editor ) {
 	function onTouchStart( event ) {
 
 		const touch = event.changedTouches[ 0 ];
-
 		const array = getMousePosition( container.dom, touch.clientX, touch.clientY );
 		onDownPosition.fromArray( array );
 
@@ -249,7 +246,6 @@ function Viewport( editor ) {
 	function onTouchEnd( event ) {
 
 		const touch = event.changedTouches[ 0 ];
-
 		const array = getMousePosition( container.dom, touch.clientX, touch.clientY );
 		onUpPosition.fromArray( array );
 
@@ -269,7 +265,6 @@ function Viewport( editor ) {
 		if ( intersects.length > 0 ) {
 
 			const intersect = intersects[ 0 ];
-
 			signals.objectFocused.dispatch( intersect.object );
 
 		}
@@ -280,8 +275,7 @@ function Viewport( editor ) {
 	container.dom.addEventListener( 'touchstart', onTouchStart, { passive: false } );
 	container.dom.addEventListener( 'dblclick', onDoubleClick );
 
-	// controls need to be added *after* main logic,
-	// otherwise controls.enabled doesn't work.
+	// controls must be added after main logic ----------------
 
 	const controls = new EditorControls( camera );
 	controls.addEventListener( 'change', function () {
@@ -290,15 +284,16 @@ function Viewport( editor ) {
 		signals.refreshSidebarObject3D.dispatch( camera );
 
 	} );
-	viewHelper.center = controls.center;
 
+	viewHelper.center = controls.center;
 	editor.controls = controls;
 
-	// signals
+	// signals ------------------------------------------------
 
 	signals.editorCleared.add( function () {
 
 		controls.center.set( 0, 0, 0 );
+
 		if ( pathtracer ) pathtracer.reset();
 
 		initPT();
@@ -309,7 +304,6 @@ function Viewport( editor ) {
 	signals.transformModeChanged.add( function ( mode ) {
 
 		transformControls.setMode( mode );
-
 		render();
 
 	} );
@@ -323,7 +317,6 @@ function Viewport( editor ) {
 	signals.spaceChanged.add( function ( space ) {
 
 		transformControls.setSpace( space );
-
 		render();
 
 	} );
@@ -346,14 +339,18 @@ function Viewport( editor ) {
 
 	signals.rendererCreated.add( function ( newRenderer ) {
 
+		// clean up old renderer if exists
 		if ( renderer !== null ) {
 
 			renderer.setAnimationLoop( null );
 			renderer.dispose();
+
 			if ( pmremGenerator ) pmremGenerator.dispose();
 
 			if ( renderer.domElement && renderer.domElement.parentNode === container.dom ) {
+
 				container.dom.removeChild( renderer.domElement );
+
 			}
 
 		}
@@ -371,7 +368,9 @@ function Viewport( editor ) {
 			const mediaQuery = window.matchMedia( '(prefers-color-scheme: dark)' );
 			mediaQuery.addEventListener( 'change', function ( event ) {
 
-				if ( renderer ) renderer.setClearColor( event.matches ? 0x333333 : 0xaaaaaa );
+				if ( renderer === null ) return;
+
+				renderer.setClearColor( event.matches ? 0x333333 : 0xaaaaaa );
 				updateGridColors( grid1, grid2, event.matches ? GRID_COLORS_DARK : GRID_COLORS_LIGHT );
 
 				render();
@@ -399,7 +398,8 @@ function Viewport( editor ) {
 
 	signals.rendererDetectKTX2Support.add( function ( ktx2Loader ) {
 
-		if ( renderer ) ktx2Loader.detectSupport( renderer );
+		if ( renderer === null ) return;
+		ktx2Loader.detectSupport( renderer );
 
 	} );
 
@@ -413,7 +413,6 @@ function Viewport( editor ) {
 	signals.cameraChanged.add( function () {
 
 		if ( pathtracer ) pathtracer.reset();
-
 		render();
 
 	} );
@@ -506,9 +505,18 @@ function Viewport( editor ) {
 
 	} );
 
-	// background
+	// background --------------------------------------------
 
-	signals.sceneBackgroundChanged.add( function ( backgroundType, backgroundColor, backgroundTexture, backgroundEquirectangularTexture, backgroundColorSpace, backgroundBlurriness, backgroundIntensity, backgroundRotation ) {
+	signals.sceneBackgroundChanged.add( function (
+		backgroundType,
+		backgroundColor,
+		backgroundTexture,
+		backgroundEquirectangularTexture,
+		backgroundColorSpace,
+		backgroundBlurriness,
+		backgroundIntensity,
+		backgroundRotation
+	) {
 
 		scene.background = null;
 
@@ -564,14 +572,13 @@ function Viewport( editor ) {
 
 	} );
 
-	// environment
+	// environment -------------------------------------------
 
 	let useBackgroundAsEnvironment = false;
 
 	signals.sceneEnvironmentChanged.add( function ( environmentType, environmentEquirectangularTexture ) {
 
 		scene.environment = null;
-
 		useBackgroundAsEnvironment = false;
 
 		switch ( environmentType ) {
@@ -603,7 +610,11 @@ function Viewport( editor ) {
 
 			case 'Room':
 
-				scene.environment = pmremGenerator.fromScene( new RoomEnvironment(), 0.04 ).texture;
+				if ( pmremGenerator ) {
+
+					scene.environment = pmremGenerator.fromScene( new RoomEnvironment(), 0.04 ).texture;
+
+				}
 
 				break;
 
@@ -614,7 +625,7 @@ function Viewport( editor ) {
 
 	} );
 
-	// fog
+	// fog ----------------------------------------------------
 
 	signals.sceneFogChanged.add( function ( fogType, fogColor, fogNear, fogFar, fogDensity ) {
 
@@ -623,9 +634,11 @@ function Viewport( editor ) {
 			case 'None':
 				scene.fog = null;
 				break;
+
 			case 'Fog':
 				scene.fog = new THREE.Fog( fogColor, fogNear, fogFar );
 				break;
+
 			case 'FogExp2':
 				scene.fog = new THREE.FogExp2( fogColor, fogDensity );
 				break;
@@ -645,6 +658,7 @@ function Viewport( editor ) {
 				scene.fog.near = fogNear;
 				scene.fog.far = fogFar;
 				break;
+
 			case 'FogExp2':
 				scene.fog.color.setHex( fogColor );
 				scene.fog.density = fogDensity;
@@ -666,6 +680,7 @@ function Viewport( editor ) {
 
 		}
 
+		// disable EditorControls when setting a user camera
 		controls.enabled = ( viewportCamera === editor.camera );
 
 		initPT();
@@ -701,17 +716,22 @@ function Viewport( editor ) {
 
 	} );
 
-	//
+	// resize -------------------------------------------------
 
 	signals.windowResize.add( function () {
 
 		updateAspectRatio();
 
-		const w = container.dom.offsetWidth;
-		const h = container.dom.offsetHeight;
+		// renderer may still be null if rendererCreated hasn’t fired yet
+		if ( renderer === null ) return;
 
-		if ( renderer && renderer.setSize ) renderer.setSize( w, h );
-		if ( pathtracer && pathtracer.setSize ) pathtracer.setSize( w, h );
+		renderer.setSize( container.dom.offsetWidth, container.dom.offsetHeight );
+
+		if ( pathtracer ) {
+
+			pathtracer.setSize( container.dom.offsetWidth, container.dom.offsetHeight );
+
+		}
 
 		render();
 
@@ -741,7 +761,9 @@ function Viewport( editor ) {
 					break;
 
 				default:
-					// not a helper, skip.
+					// not a helper
+					break;
+
 			}
 
 		} );
@@ -752,13 +774,15 @@ function Viewport( editor ) {
 
 	signals.cameraResetted.add( updateAspectRatio );
 
-	// animations
+	// animations ---------------------------------------------
 
 	let prevActionsInUse = 0;
-
-	const clock = new THREE.Clock(); // only used for animations
+	const clock = new THREE.Clock();
 
 	function animate() {
+
+		// renderer can be null during early boot
+		if ( renderer === null ) return;
 
 		const mixer = editor.mixer;
 		const delta = clock.getDelta();
@@ -790,8 +814,7 @@ function Viewport( editor ) {
 
 		}
 
-		// ✅ guard: renderer might not exist yet
-		if ( renderer && renderer.xr && renderer.xr.isPresenting === true ) {
+		if ( renderer.xr && renderer.xr.isPresenting === true ) {
 
 			needsUpdate = true;
 
@@ -854,15 +877,14 @@ function Viewport( editor ) {
 
 	}
 
-	//
+	// render -------------------------------------------------
 
 	let startTime = 0;
 	let endTime = 0;
 
 	function render() {
 
-		// ✅ guard: renderer may not exist yet
-		if ( !renderer ) return;
+		if ( renderer === null ) return;
 
 		startTime = performance.now();
 
@@ -872,9 +894,11 @@ function Viewport( editor ) {
 		if ( camera === editor.viewportCamera ) {
 
 			renderer.autoClear = false;
+
 			if ( grid.visible === true ) renderer.render( grid, camera );
 			if ( sceneHelpers.visible === true ) renderer.render( sceneHelpers, camera );
 			if ( renderer.xr && renderer.xr.isPresenting !== true ) viewHelper.render( renderer );
+
 			renderer.autoClear = true;
 
 		}
