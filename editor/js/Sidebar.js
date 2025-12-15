@@ -31,7 +31,7 @@ function Sidebar( editor ) {
 	container.addTab( 'scene', strings.getKey( 'sidebar/scene' ), scene );
 	container.addTab( 'project', strings.getKey( 'sidebar/project' ), project );
 	container.addTab( 'settings', strings.getKey( 'sidebar/settings' ), settings );
-	container.select( 'scene' );
+	container.select( 'shapes' );
 
 	const sidebarPropertiesResizeObserver = new ResizeObserver( function () {
 
