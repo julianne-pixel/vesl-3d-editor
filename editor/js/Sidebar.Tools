@@ -1,0 +1,68 @@
+import { UIPanel, UIRow, UIText, UIButton } from './libs/ui.js';
+
+function SidebarTools( editor ) {
+
+	const signals = editor.signals;
+
+	const container = new UIPanel();
+	container.setClass( 'Panel' );
+
+	// Title
+	const titleRow = new UIRow();
+	const title = new UIText( 'TOOLS' );
+	title.setClass( 'title' );
+	titleRow.add( title );
+	container.add( titleRow );
+
+	// Helper text (student-friendly)
+	const hintRow = new UIRow();
+	const hint = new UIText( 'Select an object, then choose a tool.' );
+	hint.dom.style.opacity = '0.7';
+	hint.dom.style.fontSize = '12px';
+	hintRow.add( hint );
+	container.add( hintRow );
+
+	// Tool buttons
+	function makeToolButton( label, mode ) {
+
+		const row = new UIRow();
+
+		const btn = new UIButton( label );
+		btn.setWidth( '100%' );
+
+		btn.onClick( function () {
+			signals.transformModeChanged.dispatch( mode );
+		} );
+
+		row.add( btn );
+		container.add( row );
+
+		return btn;
+
+	}
+
+	const btnMove = makeToolButton( 'Move', 'translate' );
+	const btnRotate = makeToolButton( 'Rotate', 'rotate' );
+	const btnResize = makeToolButton( 'Resize', 'scale' );
+
+	// Keep UI in sync with the editor state
+	signals.transformModeChanged.add( function ( mode ) {
+
+		btnMove.dom.classList.remove( 'selected' );
+		btnRotate.dom.classList.remove( 'selected' );
+		btnResize.dom.classList.remove( 'selected' );
+
+		if ( mode === 'translate' ) btnMove.dom.classList.add( 'selected' );
+		if ( mode === 'rotate' ) btnRotate.dom.classList.add( 'selected' );
+		if ( mode === 'scale' ) btnResize.dom.classList.add( 'selected' );
+
+	} );
+
+	// Default to Move (matches typical expectation)
+	btnMove.dom.classList.add( 'selected' );
+
+	return container;
+
+}
+
+export { SidebarTools };
