@@ -46,6 +46,7 @@ function Viewport( editor ) {
 	const camera = editor.camera;
 	const scene = editor.scene;
 	const sceneHelpers = editor.sceneHelpers;
+	const ENABLE_VIEW_HELPER = false;
 
 	// =====================================================================
 	// SOLID MODE FIX:
@@ -139,7 +140,7 @@ function Viewport( editor ) {
 
 	sceneHelpers.add( grid );
 
-	const viewHelper = new ViewHelper( camera, container );
+const viewHelper = ENABLE_VIEW_HELPER ? new ViewHelper( camera, container ) : null;
 
 	//
 
@@ -903,13 +904,13 @@ function Viewport( editor ) {
 			}
 
 		}
+if ( viewHelper && viewHelper.animating === true ) {
 
-		if ( viewHelper.animating === true ) {
+	viewHelper.update( delta );
+	needsUpdate = true;
 
-			viewHelper.update( delta );
-			needsUpdate = true;
+}
 
-		}
 
 		if ( renderer.xr && renderer.xr.isPresenting === true ) {
 
@@ -994,7 +995,7 @@ function Viewport( editor ) {
 
 			if ( grid.visible === true ) renderer.render( grid, camera );
 			if ( sceneHelpers.visible === true ) renderer.render( sceneHelpers, camera );
-			if ( renderer.xr && renderer.xr.isPresenting !== true ) viewHelper.render( renderer );
+if ( viewHelper && renderer.xr && renderer.xr.isPresenting !== true ) viewHelper.render( renderer );
 
 			renderer.autoClear = true;
 
