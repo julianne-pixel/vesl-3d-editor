@@ -1,12 +1,15 @@
 import { UIPanel } from './libs/ui.js';
-
 import { ViewHelper as ViewHelperBase } from 'three/addons/helpers/ViewHelper.js';
+
+const ENABLE_VIEW_HELPER = false; // <-- toggle later
 
 class ViewHelper extends ViewHelperBase {
 
 	constructor( editorCamera, container ) {
 
 		super( editorCamera, container.dom );
+
+		if ( ENABLE_VIEW_HELPER === false ) return;
 
 		const panel = new UIPanel();
 		panel.setId( 'viewHelper' );
@@ -19,7 +22,6 @@ class ViewHelper extends ViewHelperBase {
 		panel.dom.addEventListener( 'pointerup', ( event ) => {
 
 			event.stopPropagation();
-
 			this.handleClick( event );
 
 		} );
