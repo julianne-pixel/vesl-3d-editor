@@ -942,32 +942,6 @@ select {
   pointer-events: none;
 }
 
-/* =========================================================
-   VESL MODE — Hide sidebar tabs except SHAPES
-   (Do NOT touch the top File/Help menu)
-   ========================================================= */
 
-/* Hide sidebar tabs except Shapes */
-#sidebar.TabbedPanel .Tabs .Tab:not(#shapes){
-  display: none !important;
-}
-/* Hide non-Shapes tab panels */
-#sidebar.TabbedPanel > .Panel:not(#shapes-panel){
-  display: none !important;
-}
-
-/* Ensure Shapes panel is visible */
-#sidebar.TabbedPanel > .Panel#shapes-panel{
-  display: block !important;
-}
-#sidebar.TabbedPanel .Tabs .Tab#shapes{
-  text-transform: uppercase;
-}
-#sidebar.TabbedPanel .Tabs .Tab#shapes::after{
-  content: "BUILD";
-}
-#sidebar.TabbedPanel .Tabs .Tab#shapes{
-  color: transparent;
-}
 
 
