@@ -947,11 +947,11 @@ select {
    (Do NOT touch the top File/Help menu)
    ========================================================= */
 
-#sidebar.TabbedPanel .Tabs .Tab:not(#shapes){
+/* VESL MODE — hide sidebar tabs except Shapes */
+#sidebar.TabbedPanel > .Tabs > .Tab:not(#shapes),
+#sidebar.TabbedPanel > .Tabs > .Tab:not(:first-child){
   display: none !important;
 }
 
-/* Optional: remove the right border line that expects other tabs */
-#sidebar.TabbedPanel .Tabs .Tab#shapes{
-  border-right: none !important;
-}
+#sidebar.TabbedPanel { outline: 4px solid red !important; }
+
