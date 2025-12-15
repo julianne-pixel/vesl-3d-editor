@@ -957,5 +957,14 @@ select {
   margin-right: 0;
 }
 
+/* Hide camera + shading mode controls (top-right) */
+#viewport .viewport-controls {
+	display: none !important;
+}
+
+/* Hide stats overlay (bottom-left) */
+#viewport .viewport-info {
+	display: none !important;
+}
 
 
