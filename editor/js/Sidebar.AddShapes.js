@@ -95,6 +95,26 @@ function SidebarAddShapes( editor ) {
 	addSection.setClass( 'buttons' );
 	container.add( addSection );
 
+	// ✅ single source of truth for “new shape defaults”
+	function makeDefaultMatteMaterial() {
+
+		const material = new MeshStandardMaterial( {
+			color: 0x000000,      // ✅ black
+			metalness: 0.0,       // ✅ matte baseline
+			roughness: 1.0,       // ✅ totally flat
+			transparent: false,
+			opacity: 1.0
+		} );
+
+		// keep reflections off for matte (matches your preset behavior)
+		material.envMapIntensity = 0;
+
+		if ( material.emissive ) material.emissive.set( 0x000000 );
+
+		return material;
+
+	}
+
 	function addShapeButton( label, createGeometry ) {
 
 		const row = new UIRow();
@@ -105,17 +125,18 @@ function SidebarAddShapes( editor ) {
 
 			const geometry = createGeometry();
 
-			const material = new MeshStandardMaterial( {
-				color: 0xffffff,
-				metalness: 0.2,
-				roughness: 0.8
-			} );
+			// ✅ ensure new shapes start black + matte
+			const material = makeDefaultMatteMaterial();
 
 			const mesh = new Mesh( geometry, material );
 			mesh.position.set( 0, 0.5, 0 );
 
+			// ✅ store default preset so UI always knows what to show
+			mesh.userData = mesh.userData || {};
+			mesh.userData.veslPreset = 'matte';
+
 			editor.execute( new AddObjectCommand( editor, mesh ) );
-			editor.select( mesh );
+			editor.select( mesh ); // selection triggers syncUIFromSelection via signals
 
 		} );
 
@@ -396,7 +417,8 @@ function SidebarAddShapes( editor ) {
 	pickerLabel.setClass( 'label' );
 	pickerRow.add( pickerLabel );
 
-	const colorInput = new UIColor().setValue( '#ffffff' );
+	// ✅ default picker value should be black (matches new shapes)
+	const colorInput = new UIColor().setValue( '#000000' );
 	colorInput.onChange( function () {
 
 		applyColor( colorInput.getValue() );
@@ -481,4 +503,3 @@ function SidebarAddShapes( editor ) {
 }
 
 export { SidebarAddShapes };
-
