@@ -25,6 +25,63 @@ function SidebarAddShapes( editor ) {
 	container.setId( 'sidebar-addshapes' );
 	container.setClass( 'Panel' );
 
+	// --- VESL selection styles (swatches + material buttons) ---
+	const styleTag = document.createElement( 'style' );
+	styleTag.textContent = `
+		#sidebar-addshapes{
+			--vesl-accent:#00fd64;
+		}
+
+		/* Swatches */
+		#sidebar-addshapes .color-swatch{
+			position:relative;
+			border-radius:8px;
+			outline:2px solid transparent;
+		}
+		#sidebar-addshapes .color-swatch.is-selected{
+			outline:3px solid var(--vesl-accent);
+			box-shadow: 0 0 0 2px rgba(0,253,100,0.30), 0 0 18px rgba(0,253,100,0.20);
+		}
+		#sidebar-addshapes .color-swatch.is-selected::after{
+			content:"✓";
+			position:absolute;
+			top:-7px; right:-7px;
+			width:18px; height:18px;
+			border-radius:999px;
+			display:grid; place-items:center;
+			font-size:12px; font-weight:900;
+			background:var(--vesl-accent);
+			color:#000;
+			box-shadow:0 6px 18px rgba(0,0,0,0.35);
+		}
+
+		/* Material buttons */
+		#sidebar-addshapes .material-row .button{
+			position:relative;
+			border-radius:10px;
+			outline:2px solid transparent;
+		}
+		#sidebar-addshapes .material-row .button.is-selected{
+			outline-color:var(--vesl-accent);
+			box-shadow: 0 0 0 2px rgba(0,253,100,0.25), 0 0 22px rgba(0,253,100,0.15);
+		}
+		#sidebar-addshapes .material-row .button.is-selected::after{
+			content:"Active";
+			position:absolute;
+			right:10px;
+			top:50%;
+			transform:translateY(-50%);
+			font-size:11px;
+			font-weight:800;
+			padding:2px 8px;
+			border-radius:999px;
+			background:rgba(0,253,100,0.16);
+			color:var(--vesl-accent);
+			border:1px solid rgba(0,253,100,0.30);
+		}
+	`;
+	container.dom.appendChild( styleTag );
+
 	// =====================================================
 	// 1. ADD SHAPE
 	// =====================================================
@@ -116,6 +173,7 @@ function SidebarAddShapes( editor ) {
 		const { object, material } = result;
 
 		material.color.set( new Color( hex ) );
+
 		// a tiny emissive tweak so the color “pops” even in meh lighting
 		if ( material.emissive ) {
 			material.emissive.set( new Color( hex ).multiplyScalar( 0.15 ) );
@@ -126,97 +184,189 @@ function SidebarAddShapes( editor ) {
 
 	}
 
+	function applyPreset( preset ) {
 
-function applyPreset( preset ) {
+		const result = getSelectedMaterial();
+		if ( !result ) return;
 
-	const result = getSelectedMaterial();
-	if ( !result ) return;
+		const { object, material } = result;
 
-	const { object, material } = result;
+		// remember starting color so presets can build off it
+		const baseColor = material.color.clone();
 
-	// remember starting color so presets can build off it
-	const baseColor = material.color.clone();
-
-	// reset baseline so presets don't stack weirdly
-	material.transparent     = false;
-	material.opacity         = 1.0;
-	material.depthWrite      = true;
-	material.metalness       = 0.0;
-	material.roughness       = 0.5;
-	material.envMapIntensity = 1.0;
-
-	if ( material.emissive ) {
-		material.emissive.set( 0x000000 );
-	}
-
-	// give metal/glass something to reflect if available
-	const env = editor.scene && ( editor.scene.environment || editor.scene.background ) || null;
-	if ( env ) {
-		material.envMap = env;
-	}
-
-	// ================= PRESETS =================
-
-	if ( preset === 'matte' ) {
-
-		// OPAQUE, totally flat, no shine
-		material.color.copy( baseColor );
-		material.metalness = 0.0;
-		material.roughness = 1.0;     // max roughness
-		material.envMapIntensity = 0; // kill reflections
-
-	} else if ( preset === 'plastic' ) {
-
-		// Same color, pretty shiny “toy plastic”
-		material.color.copy( baseColor );
-		material.metalness = 0.05;
-		material.roughness = 0.22;
-
-		if ( env ) material.envMapIntensity = 1.2;
+		// reset baseline so presets don't stack weirdly
+		material.transparent     = false;
+		material.opacity         = 1.0;
+		material.depthWrite      = true;
+		material.metalness       = 0.0;
+		material.roughness       = 0.5;
+		material.envMapIntensity = 1.0;
 
 		if ( material.emissive ) {
-			// subtle glow so it pops more than matte
-			material.emissive.copy( material.color ).multiplyScalar( 0.06 );
+			material.emissive.set( 0x000000 );
 		}
 
-	} else if ( preset === 'metal' ) {
+		// give metal/glass something to reflect if available
+		const env = editor.scene && ( editor.scene.environment || editor.scene.background ) || null;
+		if ( env ) {
+			material.envMap = env;
+		}
 
-		// SILVER-tinted + very shiny
-		const silver = new Color( 0xdadada );
-		// keep a hint of original hue but mostly silver
-		silver.lerp( baseColor, 0.2 );
-		material.color.copy( silver );
+		// ================= PRESETS =================
 
-		material.metalness = 1.0;
-		material.roughness = 0.06;
+		if ( preset === 'matte' ) {
 
-		if ( env ) material.envMapIntensity = 2.2;
+			// OPAQUE, totally flat, no shine
+			material.color.copy( baseColor );
+			material.metalness = 0.0;
+			material.roughness = 1.0;     // max roughness
+			material.envMapIntensity = 0; // kill reflections
 
-	} else if ( preset === 'glass' ) {
+		} else if ( preset === 'plastic' ) {
 
-		// Keep color, but very transparent + a bit shiny
-		const glassTint = baseColor.clone().lerp( new Color( 0xffffff ), 0.25 );
-		material.color.copy( glassTint );
+			// Same color, pretty shiny “toy plastic”
+			material.color.copy( baseColor );
+			material.metalness = 0.05;
+			material.roughness = 0.22;
 
-		material.metalness    = 0.0;
-		material.roughness    = 0.05;
-		material.transparent  = true;
-		material.opacity      = 0.12;   // very see-through
-		material.depthWrite   = false;  // so you can see inside edges better
+			if ( env ) material.envMapIntensity = 1.2;
 
-		if ( env ) material.envMapIntensity = 1.4;
+			if ( material.emissive ) {
+				// subtle glow so it pops more than matte
+				material.emissive.copy( material.color ).multiplyScalar( 0.06 );
+			}
+
+		} else if ( preset === 'metal' ) {
+
+			// SILVER-tinted + very shiny
+			const silver = new Color( 0xdadada );
+			// keep a hint of original hue but mostly silver
+			silver.lerp( baseColor, 0.2 );
+			material.color.copy( silver );
+
+			material.metalness = 1.0;
+			material.roughness = 0.06;
+
+			if ( env ) material.envMapIntensity = 2.2;
+
+		} else if ( preset === 'glass' ) {
+
+			// Keep color, but very transparent + a bit shiny
+			const glassTint = baseColor.clone().lerp( new Color( 0xffffff ), 0.25 );
+			material.color.copy( glassTint );
+
+			material.metalness    = 0.0;
+			material.roughness    = 0.05;
+			material.transparent  = true;
+			material.opacity      = 0.12;   // very see-through
+			material.depthWrite   = false;  // so you can see inside edges better
+
+			if ( env ) material.envMapIntensity = 1.4;
+
+		}
+
+		material.needsUpdate = true;
+
+		if ( signals.materialChanged ) {
+			signals.materialChanged.dispatch( material );
+		}
+
+		signals.objectChanged.dispatch( object );
+
 	}
 
-	material.needsUpdate = true;
+	// ---------- UI selection state ----------
+	const swatchButtons = [];                 // { hex, row }
+	const materialButtons = new Map();        // key -> row
+	let selectedSwatchRow = null;
+	let selectedMaterialKey = null;
 
-	if ( signals.materialChanged ) {
-		signals.materialChanged.dispatch( material );
+	function setSelectedSwatchRow( row ) {
+
+		if ( selectedSwatchRow ) selectedSwatchRow.dom.classList.remove( 'is-selected' );
+		selectedSwatchRow = row;
+		if ( selectedSwatchRow ) selectedSwatchRow.dom.classList.add( 'is-selected' );
+
 	}
 
-	signals.objectChanged.dispatch( object );
-}
+	function setSelectedMaterialKey( key ) {
 
+		if ( selectedMaterialKey && materialButtons.has( selectedMaterialKey ) ) {
+			materialButtons.get( selectedMaterialKey ).dom.classList.remove( 'is-selected' );
+		}
 
+		selectedMaterialKey = key;
+
+		if ( key && materialButtons.has( key ) ) {
+			materialButtons.get( key ).dom.classList.add( 'is-selected' );
+		}
+
+	}
+
+	function syncSwatchToMaterial( material ) {
+
+		if ( !material || !material.color ) return;
+
+		let best = null;
+		let bestDist = Infinity;
+
+		const c = material.color.clone();
+
+		for ( const item of swatchButtons ) {
+
+			const sc = new Color( item.hex );
+			const dr = c.r - sc.r, dg = c.g - sc.g, db = c.b - sc.b;
+			const d = dr * dr + dg * dg + db * db;
+
+			if ( d < bestDist ) {
+				bestDist = d;
+				best = item;
+			}
+
+		}
+
+		// only “snap” to a swatch if it's reasonably close; otherwise leave none selected
+		if ( best && bestDist < 0.03 ) setSelectedSwatchRow( best.row );
+		else setSelectedSwatchRow( null );
+
+	}
+
+	function inferPreset( material ) {
+
+		if ( !material ) return null;
+		if ( material.transparent && material.opacity < 0.4 ) return 'glass';
+		if ( material.metalness > 0.85 && material.roughness < 0.2 ) return 'metal';
+		if ( material.roughness >= 0.85 && material.metalness < 0.1 ) return 'matte';
+		return 'plastic';
+
+	}
+
+	function syncUIFromSelection() {
+
+		const result = getSelectedMaterial();
+		if ( !result ) {
+			setSelectedSwatchRow( null );
+			setSelectedMaterialKey( null );
+			return;
+		}
+
+		const { object, material } = result;
+
+		syncSwatchToMaterial( material );
+
+		const key = object.userData && object.userData.veslPreset
+			? object.userData.veslPreset
+			: inferPreset( material );
+
+		setSelectedMaterialKey( key );
+
+		// keep custom picker synced to actual material color
+		if ( material && material.color && colorInput ) {
+			const hex = '#' + material.color.getHexString();
+			colorInput.setValue( hex );
+		}
+
+	}
 
 	// ---------- color swatches ----------
 
@@ -237,24 +387,7 @@ function applyPreset( preset ) {
 		'#795548', '#9e9e9e'
 	];
 
-	swatchColors.forEach( hex => {
-
-		const swatch = new UIRow();
-		swatch.setClass( 'color-swatch' );
-		swatch.dom.style.backgroundColor = hex;
-
-		swatch.onClick( function () {
-
-			applyColor( hex );
-
-		} );
-
-		swatchRow.add( swatch );
-
-	} );
-
-	// ---------- full color picker ----------
-
+	// ---------- full color picker (declare early so syncUIFromSelection can reference) ----------
 	const pickerRow = new UIRow();
 	pickerRow.setClass( 'color-picker-row' );
 	container.add( pickerRow );
@@ -267,10 +400,31 @@ function applyPreset( preset ) {
 	colorInput.onChange( function () {
 
 		applyColor( colorInput.getValue() );
+		// custom color usually won’t match a swatch; resync decides
+		syncUIFromSelection();
 
 	} );
 
 	pickerRow.add( colorInput );
+
+	swatchColors.forEach( hex => {
+
+		const swatch = new UIRow();
+		swatch.setClass( 'color-swatch' );
+		swatch.dom.style.backgroundColor = hex;
+
+		swatch.onClick( function () {
+
+			applyColor( hex );
+			setSelectedSwatchRow( swatch );
+			colorInput.setValue( hex );
+
+		} );
+
+		swatchRow.add( swatch );
+		swatchButtons.push( { hex, row: swatch } );
+
+	} );
 
 	// ---------- material presets ----------
 
@@ -290,11 +444,23 @@ function applyPreset( preset ) {
 
 		row.onClick( function () {
 
+			const result = getSelectedMaterial();
+			if ( !result ) return;
+
+			const { object } = result;
+
 			applyPreset( key );
+
+			// store the chosen preset on the object so it persists across selection
+			object.userData = object.userData || {};
+			object.userData.veslPreset = key;
+
+			setSelectedMaterialKey( key );
 
 		} );
 
 		matRow.add( row );
+		materialButtons.set( key, row );
 
 	}
 
@@ -303,8 +469,16 @@ function applyPreset( preset ) {
 	matButton( 'Metal', 'metal' );
 	matButton( 'Glass', 'glass' );
 
+	// keep UI synced when selection changes
+	if ( signals.objectSelected ) signals.objectSelected.add( syncUIFromSelection );
+	if ( signals.objectChanged ) signals.objectChanged.add( syncUIFromSelection );
+
+	// initialize
+	syncUIFromSelection();
+
 	return container;
 
 }
 
 export { SidebarAddShapes };
+
