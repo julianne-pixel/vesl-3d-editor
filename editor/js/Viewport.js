@@ -19,6 +19,13 @@ import { SetScaleCommand } from './commands/SetScaleCommand.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { ViewportPathtracer } from './Viewport.Pathtracer.js';
 
+/**
+ * IMPORTANT:
+ * Keep renderer at module scope so event handlers never reference an uninitialized binding.
+ * Do NOT redeclare `renderer` inside Viewport() (that would shadow this and cause null errors).
+ */
+let renderer = null;
+
 function Viewport( editor ) {
 
 	const selector = editor.selector;
@@ -33,7 +40,6 @@ function Viewport( editor ) {
 
 	//
 
-	let renderer = null;
 	let pmremGenerator = null;
 	let pathtracer = null;
 
@@ -206,6 +212,9 @@ function Viewport( editor ) {
 
 		// event.preventDefault();
 
+		// ✅ guard: renderer may not exist yet (or may have failed to init)
+		if ( !renderer || !renderer.domElement ) return;
+
 		if ( event.target !== renderer.domElement ) return;
 
 		const array = getMousePosition( container.dom, event.clientX, event.clientY );
@@ -290,7 +299,7 @@ function Viewport( editor ) {
 	signals.editorCleared.add( function () {
 
 		controls.center.set( 0, 0, 0 );
-		pathtracer.reset();
+		if ( pathtracer ) pathtracer.reset();
 
 		initPT();
 		render();
@@ -341,9 +350,11 @@ function Viewport( editor ) {
 
 			renderer.setAnimationLoop( null );
 			renderer.dispose();
-			pmremGenerator.dispose();
+			if ( pmremGenerator ) pmremGenerator.dispose();
 
-			container.dom.removeChild( renderer.domElement );
+			if ( renderer.domElement && renderer.domElement.parentNode === container.dom ) {
+				container.dom.removeChild( renderer.domElement );
+			}
 
 		}
 
@@ -360,7 +371,7 @@ function Viewport( editor ) {
 			const mediaQuery = window.matchMedia( '(prefers-color-scheme: dark)' );
 			mediaQuery.addEventListener( 'change', function ( event ) {
 
-				renderer.setClearColor( event.matches ? 0x333333 : 0xaaaaaa );
+				if ( renderer ) renderer.setClearColor( event.matches ? 0x333333 : 0xaaaaaa );
 				updateGridColors( grid1, grid2, event.matches ? GRID_COLORS_DARK : GRID_COLORS_LIGHT );
 
 				render();
@@ -388,7 +399,7 @@ function Viewport( editor ) {
 
 	signals.rendererDetectKTX2Support.add( function ( ktx2Loader ) {
 
-		ktx2Loader.detectSupport( renderer );
+		if ( renderer ) ktx2Loader.detectSupport( renderer );
 
 	} );
 
@@ -401,7 +412,7 @@ function Viewport( editor ) {
 
 	signals.cameraChanged.add( function () {
 
-		pathtracer.reset();
+		if ( pathtracer ) pathtracer.reset();
 
 		render();
 
@@ -542,7 +553,6 @@ function Viewport( editor ) {
 
 					}
 
-
 				}
 
 				break;
@@ -565,7 +575,6 @@ function Viewport( editor ) {
 		useBackgroundAsEnvironment = false;
 
 		switch ( environmentType ) {
-
 
 			case 'Background':
 
@@ -657,8 +666,6 @@ function Viewport( editor ) {
 
 		}
 
-		// disable EditorControls when setting a user camera
-
 		controls.enabled = ( viewportCamera === editor.camera );
 
 		initPT();
@@ -673,7 +680,7 @@ function Viewport( editor ) {
 		switch ( viewportShading ) {
 
 			case 'realistic':
-				pathtracer.init( scene, editor.viewportCamera );
+				if ( pathtracer ) pathtracer.init( scene, editor.viewportCamera );
 				break;
 
 			case 'solid':
@@ -700,8 +707,11 @@ function Viewport( editor ) {
 
 		updateAspectRatio();
 
-		renderer.setSize( container.dom.offsetWidth, container.dom.offsetHeight );
-		pathtracer.setSize( container.dom.offsetWidth, container.dom.offsetHeight );
+		const w = container.dom.offsetWidth;
+		const h = container.dom.offsetHeight;
+
+		if ( renderer && renderer.setSize ) renderer.setSize( w, h );
+		if ( pathtracer && pathtracer.setSize ) pathtracer.setSize( w, h );
 
 		render();
 
@@ -716,47 +726,25 @@ function Viewport( editor ) {
 			switch ( object.type ) {
 
 				case 'CameraHelper':
-
-				{
-
 					object.visible = appearanceStates.cameraHelpers;
 					break;
-
-				}
 
 				case 'PointLightHelper':
 				case 'DirectionalLightHelper':
 				case 'SpotLightHelper':
 				case 'HemisphereLightHelper':
-
-				{
-
 					object.visible = appearanceStates.lightHelpers;
 					break;
 
-				}
-
 				case 'SkeletonHelper':
-
-				{
-
 					object.visible = appearanceStates.skeletonHelpers;
 					break;
 
-				}
-
 				default:
-
-				{
-
 					// not a helper, skip.
-
-				}
-
 			}
 
 		} );
-
 
 		render();
 
@@ -777,8 +765,6 @@ function Viewport( editor ) {
 
 		let needsUpdate = false;
 
-		// Animations
-
 		const actions = mixer.stats.actions;
 
 		if ( actions.inUse > 0 || prevActionsInUse > 0 ) {
@@ -790,14 +776,12 @@ function Viewport( editor ) {
 
 			if ( editor.selected !== null ) {
 
-				editor.selected.updateWorldMatrix( false, true ); // avoid frame late effect for certain skinned meshes (e.g. Michelle.glb)
-				selectionBox.box.setFromObject( editor.selected, true ); // selection box should reflect current animation state
+				editor.selected.updateWorldMatrix( false, true );
+				selectionBox.box.setFromObject( editor.selected, true );
 
 			}
 
 		}
-
-		// View Helper
 
 		if ( viewHelper.animating === true ) {
 
@@ -806,7 +790,8 @@ function Viewport( editor ) {
 
 		}
 
-		if ( renderer.xr.isPresenting === true ) {
+		// ✅ guard: renderer might not exist yet
+		if ( renderer && renderer.xr && renderer.xr.isPresenting === true ) {
 
 			needsUpdate = true;
 
@@ -820,7 +805,7 @@ function Viewport( editor ) {
 
 	function initPT() {
 
-		if ( editor.viewportShading === 'realistic' ) {
+		if ( editor.viewportShading === 'realistic' && pathtracer ) {
 
 			pathtracer.init( scene, editor.viewportCamera );
 
@@ -830,7 +815,7 @@ function Viewport( editor ) {
 
 	function updatePTBackground() {
 
-		if ( editor.viewportShading === 'realistic' ) {
+		if ( editor.viewportShading === 'realistic' && pathtracer ) {
 
 			pathtracer.setBackground( scene.background, scene.backgroundBlurriness );
 
@@ -840,7 +825,7 @@ function Viewport( editor ) {
 
 	function updatePTEnvironment() {
 
-		if ( editor.viewportShading === 'realistic' ) {
+		if ( editor.viewportShading === 'realistic' && pathtracer ) {
 
 			pathtracer.setEnvironment( scene.environment );
 
@@ -850,7 +835,7 @@ function Viewport( editor ) {
 
 	function updatePTMaterials() {
 
-		if ( editor.viewportShading === 'realistic' ) {
+		if ( editor.viewportShading === 'realistic' && pathtracer ) {
 
 			pathtracer.updateMaterials();
 
@@ -860,7 +845,7 @@ function Viewport( editor ) {
 
 	function updatePT() {
 
-		if ( editor.viewportShading === 'realistic' ) {
+		if ( editor.viewportShading === 'realistic' && pathtracer ) {
 
 			pathtracer.update();
 			editor.signals.pathTracerUpdated.dispatch( pathtracer.getSamples() );
@@ -876,6 +861,9 @@ function Viewport( editor ) {
 
 	function render() {
 
+		// ✅ guard: renderer may not exist yet
+		if ( !renderer ) return;
+
 		startTime = performance.now();
 
 		renderer.setViewport( 0, 0, container.dom.offsetWidth, container.dom.offsetHeight );
@@ -886,7 +874,7 @@ function Viewport( editor ) {
 			renderer.autoClear = false;
 			if ( grid.visible === true ) renderer.render( grid, camera );
 			if ( sceneHelpers.visible === true ) renderer.render( sceneHelpers, camera );
-			if ( renderer.xr.isPresenting !== true ) viewHelper.render( renderer );
+			if ( renderer.xr && renderer.xr.isPresenting !== true ) viewHelper.render( renderer );
 			renderer.autoClear = true;
 
 		}
