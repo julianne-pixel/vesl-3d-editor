@@ -60,57 +60,117 @@ function SidebarAddShapes( editor ) {
 
 	const DEFAULT_COLOR = '#000000';
 
+	function getMaterialsArray( object ) {
+
+		if ( ! object || ! object.material ) return [];
+
+		if ( Array.isArray( object.material ) ) {
+			return object.material.filter( m => m && m.isMaterial );
+		}
+
+		return ( object.material && object.material.isMaterial ) ? [ object.material ] : [];
+
+	}
+
+	function getFirstMaterial( object ) {
+
+		const mats = getMaterialsArray( object );
+		return mats.length > 0 ? mats[ 0 ] : null;
+
+	}
+
+	// If GLB meshes share materials, editing one mesh changes others.
+	// Clone materials per-object to make edits local to that mesh.
+	function ensureUniqueMaterials( object ) {
+
+		if ( ! object || ! object.material ) return;
+
+		if ( Array.isArray( object.material ) ) {
+
+			object.material = object.material.map( ( m ) => ( m && m.isMaterial ) ? m.clone() : m );
+			return;
+
+		}
+
+		if ( object.material && object.material.isMaterial ) {
+
+			object.material = object.material.clone();
+
+		}
+
+	}
+
 	function ensureUserData( object ) {
 
 		object.userData = object.userData || {};
 
-		// normalize to string (older builds might have stored other types)
-		if ( typeof object.userData.veslColor !== 'string' ) object.userData.veslColor = DEFAULT_COLOR;
+		// If we've already stored a VESL color, keep it
+		if ( typeof object.userData.veslColor === 'string' ) return;
+
+		// Otherwise, initialize from imported material color (GLB)
+		const m = getFirstMaterial( object );
+
+		if ( m && m.color ) {
+
+			object.userData.veslColor = '#' + m.color.getHexString();
+
+		} else {
+
+			object.userData.veslColor = DEFAULT_COLOR;
+
+		}
 
 	}
 
-	function getSelectedMaterial() {
+	function getSelected() {
 
 		const object = editor.selected;
 		if ( ! object ) return null;
 
-		let material = object.material;
-		if ( Array.isArray( material ) ) material = material[ 0 ];
-		if ( ! material || ! material.isMaterial ) return null;
+		const materials = getMaterialsArray( object );
+		if ( materials.length === 0 ) return null;
 
-		return { object, material };
+		return { object, materials };
 
 	}
 
-	// =====================================================
-	// Material application (ONLY color; no presets)
-	// Uses MeshBasicMaterial so color always shows.
-	// =====================================================
+	function applyHexToMaterial( material, hex ) {
 
-	function applyStateToMaterial( object, material ) {
+		if ( ! material || ! material.isMaterial ) return;
 
-		ensureUserData( object );
-
-		const hex = object.userData.veslColor;
-
-		// set the visible color
 		if ( material.color ) material.color.set( hex );
 
-		// strip anything that could override appearance
+		// strip anything that might hijack appearance
 		if ( material.map ) material.map = null;
 		if ( material.emissive ) material.emissive.set( 0x000000 );
 
-		material.transparent = false;
-		material.opacity = 1.0;
-		material.depthWrite = true;
-		material.depthTest = true;
+		// keep consistent visibility for flat shapes
+		if ( 'side' in material ) material.side = DoubleSide;
 
-		// helps 2D stuff like Plane/Circle/Ring show from either side
-		material.side = DoubleSide;
+		// If you're using SOLID overrides elsewhere, this still keeps underlying material sane
+		if ( 'transparent' in material ) material.transparent = false;
+		if ( 'opacity' in material ) material.opacity = 1.0;
+		if ( 'depthWrite' in material ) material.depthWrite = true;
+		if ( 'depthTest' in material ) material.depthTest = true;
 
 		material.needsUpdate = true;
 
-		if ( signals.materialChanged ) signals.materialChanged.dispatch( material );
+	}
+
+	function applyStateToSelection( object ) {
+
+		ensureUserData( object );
+
+		// CRITICAL: detach this mesh from any shared imported materials
+		ensureUniqueMaterials( object );
+
+		const mats = getMaterialsArray( object );
+		const hex = object.userData.veslColor;
+
+		for ( const m of mats ) applyHexToMaterial( m, hex );
+
+		// Notify editor
+		if ( signals.materialChanged ) signals.materialChanged.dispatch( mats[ 0 ] );
 		signals.objectChanged.dispatch( object );
 
 	}
@@ -154,7 +214,7 @@ function SidebarAddShapes( editor ) {
 			ensureUserData( mesh );
 			mesh.userData.veslColor = DEFAULT_COLOR;
 
-			applyStateToMaterial( mesh, material );
+			applyStateToSelection( mesh );
 
 			editor.execute( new AddObjectCommand( editor, mesh ) );
 			editor.select( mesh );
@@ -236,15 +296,15 @@ function SidebarAddShapes( editor ) {
 
 		if ( suppressColorChange ) return;
 
-		const result = getSelectedMaterial();
-		if ( ! result ) return;
+		const sel = getSelected();
+		if ( ! sel ) return;
 
-		const { object, material } = result;
+		const { object } = sel;
 
 		ensureUserData( object );
 		object.userData.veslColor = colorInput.getValue();
 
-		applyStateToMaterial( object, material );
+		applyStateToSelection( object );
 
 	} );
 	pickerRow.add( colorInput );
@@ -266,10 +326,10 @@ function SidebarAddShapes( editor ) {
 
 		swatch.onClick( function () {
 
-			const result = getSelectedMaterial();
-			if ( ! result ) return;
+			const sel = getSelected();
+			if ( ! sel ) return;
 
-			const { object, material } = result;
+			const { object } = sel;
 
 			ensureUserData( object );
 			object.userData.veslColor = hex;
@@ -280,7 +340,7 @@ function SidebarAddShapes( editor ) {
 			colorInput.setValue( hex );
 			suppressColorChange = false;
 
-			applyStateToMaterial( object, material );
+			applyStateToSelection( object );
 
 		} );
 
@@ -300,23 +360,26 @@ function SidebarAddShapes( editor ) {
 		if ( syncing ) return;
 		syncing = true;
 
-		const result = getSelectedMaterial();
+		const sel = getSelected();
 
-		if ( ! result ) {
+		if ( ! sel ) {
 
 			setSelectedSwatchRow( null );
-
 			syncing = false;
 			return;
 
 		}
 
-		const { object, material } = result;
+		const { object } = sel;
 
+		// IMPORTANT:
+		// - initialize userData from imported material color (first time)
+		// - clone materials so edits don't affect sibling meshes
 		ensureUserData( object );
+		ensureUniqueMaterials( object );
 
-		// Re-apply from userData every time (keeps it consistent)
-		applyStateToMaterial( object, material );
+		// Keep material consistent with stored color
+		applyStateToSelection( object );
 
 		syncSwatchToHex( object.userData.veslColor );
 
