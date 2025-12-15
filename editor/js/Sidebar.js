@@ -3,21 +3,28 @@ import { UITabbedPanel } from './libs/ui.js';
 
 function Sidebar( editor ) {
 
-	// THIS is the real sidebar container
 	const container = new UITabbedPanel();
 	container.setId( 'sidebar' );
 
-	// --- SHAPES ONLY ---
 	const addShapes = new SidebarAddShapes( editor );
 	container.addTab( 'shapes', 'Shapes', addShapes );
-
-	// Default to Shapes
 	container.select( 'shapes' );
 
-	// (Optional) If you still need the resize observer for your shapes UI,
-	// keep it; otherwise you can remove it.
-	// Note: In your current file, this observer was only used to size
-	// sidebarProperties.tabsDiv, which we're removing, so this is safe to omit.
+	// Keep layout healthy: when sidebar resizes, tell the editor to resize
+	// (prevents blank/zero-sized viewport issues in some forks)
+	const ro = new ResizeObserver( function () {
+
+		// Some forks expose editor.signals.windowResized; some expose editor.signals.resize
+		if ( editor.signals && editor.signals.windowResized ) {
+			editor.signals.windowResized.dispatch();
+		} else if ( editor.signals && editor.signals.resize ) {
+			editor.signals.resize.dispatch();
+		}
+
+	} );
+
+	// Observe the actual sidebar DOM node
+	ro.observe( container.dom );
 
 	return container;
 
