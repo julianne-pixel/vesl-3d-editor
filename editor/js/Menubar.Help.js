@@ -28,7 +28,7 @@ function MenubarHelp( editor ) {
 	learn.setClass( 'option' );
 	learn.setTextContent( 'Learn' );
 	learn.onClick( function () {
-		window.open( 'https://thenotwork.org', '_blank' );
+		window.open( 'https://thenotwork.org/learning/introduction-to-digital-modeling-design', '_blank' );
 	} );
 	options.add( learn );
 
